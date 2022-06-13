@@ -178,104 +178,104 @@ pub fn lapce_internal_commands() -> IndexMap<String, LapceCommand> {
 )]
 pub enum LapceWorkbenchCommand {
     #[strum(serialize = "enable_modal_editing")]
-    #[strum(message = "Enable Modal Editing")]
+    #[strum(message = "モーダル編集の有効化")]
     EnableModal,
 
     #[strum(serialize = "disable_modal_editing")]
-    #[strum(message = "Disable Modal Editing")]
+    #[strum(message = "モーダル編集の無効化")]
     DisableModal,
 
     #[strum(serialize = "open_folder")]
-    #[strum(message = "Open Folder")]
+    #[strum(message = "フォルダを開く")]
     OpenFolder,
 
     #[strum(serialize = "close_folder")]
-    #[strum(message = "Close Folder")]
+    #[strum(message = "フォルダを閉じる")]
     CloseFolder,
 
     #[strum(serialize = "open_file")]
-    #[strum(message = "Open File")]
+    #[strum(message = "ファイルを開く")]
     OpenFile,
 
     #[strum(serialize = "change_theme")]
-    #[strum(message = "Change Theme")]
+    #[strum(message = "テーマの変更")]
     ChangeTheme,
 
     #[strum(serialize = "open_settings")]
-    #[strum(message = "Open Settings")]
+    #[strum(message = "設定を開く")]
     OpenSettings,
 
     #[strum(serialize = "open_settings_file")]
-    #[strum(message = "Open Settings File")]
+    #[strum(message = "設定ファイルを開く")]
     OpenSettingsFile,
 
     #[strum(serialize = "open_keyboard_shortcuts")]
-    #[strum(message = "Open Keyboard Shortcuts")]
+    #[strum(message = "キーボードショートカットを開く")]
     OpenKeyboardShortcuts,
 
     #[strum(serialize = "open_keyboard_shortcuts_file")]
-    #[strum(message = "Open Keyboard Shortcuts File")]
+    #[strum(message = "キーボードショートカットのファイルを開く")]
     OpenKeyboardShortcutsFile,
 
     #[strum(serialize = "open_log_file")]
-    #[strum(message = "Open Log File")]
+    #[strum(message = "ログファイルを開く")]
     OpenLogFile,
 
     #[strum(serialize = "close_tab")]
-    #[strum(message = "Close Current Tab")]
+    #[strum(message = "現在のタブを閉じる")]
     CloseTab,
 
     #[strum(serialize = "new_tab")]
-    #[strum(message = "Create New Tab")]
+    #[strum(message = "新しいタブを開く")]
     NewTab,
 
     #[strum(serialize = "next_tab")]
-    #[strum(message = "Go To Next Tab")]
+    #[strum(message = "次のタブへ移動する")]
     NextTab,
 
     #[strum(serialize = "previous_tab")]
-    #[strum(message = "Go To Previous Tab")]
+    #[strum(message = "前のタブに移動する")]
     PreviousTab,
 
     #[strum(serialize = "reload_window")]
-    #[strum(message = "Reload Window")]
+    #[strum(message = "ウィンドウの再読み込み")]
     ReloadWindow,
 
-    #[strum(message = "New Window")]
+    #[strum(message = "新規ウィンドウ")]
     #[strum(serialize = "new_window")]
     NewWindow,
 
-    #[strum(message = "New File")]
+    #[strum(message = "新規ファイル")]
     #[strum(serialize = "new_file")]
     NewFile,
 
     #[strum(serialize = "connect_ssh_host")]
-    #[strum(message = "Connect to SSH Host")]
+    #[strum(message = "SSHホストに接続")]
     ConnectSshHost,
 
     #[strum(serialize = "connect_wsl")]
-    #[strum(message = "Connect to WSL")]
+    #[strum(message = "WSLに接続")]
     ConnectWsl,
 
     #[strum(serialize = "disconnect_remote")]
-    #[strum(message = "Disconnect From Remote")]
+    #[strum(message = "リモート接続を切断")]
     DisconnectRemote,
 
     #[strum(serialize = "palette.line")]
     PaletteLine,
 
     #[strum(serialize = "palette")]
-    #[strum(message = "Go to File")]
+    #[strum(message = "ファイルへ移動")]
     Palette,
 
     #[strum(serialize = "palette.symbol")]
     PaletteSymbol,
 
-    #[strum(message = "Command Palette")]
+    #[strum(message = "コマンドパレット")]
     #[strum(serialize = "palette.command")]
     PaletteCommand,
 
-    #[strum(message = "Open Recent Workspace")]
+    #[strum(message = "最近のワークスペースを開く")]
     #[strum(serialize = "palette.workspace")]
     PaletteWorkspace,
 
@@ -306,19 +306,19 @@ pub enum LapceWorkbenchCommand {
     #[strum(serialize = "toggle_source_control_focus")]
     ToggleSourceControlFocus,
 
-    #[strum(message = "Toggle Plugin Focus")]
+    #[strum(message = "プラグインのフォーカス切り替え")]
     #[strum(serialize = "toggle_plugin_focus")]
     TogglePluginFocus,
 
-    #[strum(message = "Toggle File Explorer Focus")]
+    #[strum(message = "ファイルエクスプローラーのフォーカス切り替え")]
     #[strum(serialize = "toggle_file_explorer_focus")]
     ToggleFileExplorerFocus,
 
-    #[strum(message = "Toggle Problem Focus")]
+    #[strum(message = "問題のフォーカス切り替え")]
     #[strum(serialize = "toggle_problem_focus")]
     ToggleProblemFocus,
 
-    #[strum(message = "Toggle Search Focus")]
+    #[strum(message = "検索のフォーカス切り替え")]
     #[strum(serialize = "toggle_search_focus")]
     ToggleSearchFocus,
 
@@ -351,11 +351,11 @@ pub enum LapceWorkbenchCommand {
     SourceControlCommit,
 
     #[strum(serialize = "export_current_theme_settings")]
-    #[strum(message = "Export current settings to a theme file")]
+    #[strum(message = "現在の設定をテーマファイルにエクスポート")]
     ExportCurrentThemeSettings,
 
     #[strum(serialize = "install_theme")]
-    #[strum(message = "Install current theme file")]
+    #[strum(message = "現在のテーマファイルをインストール")]
     InstallTheme,
 }
 

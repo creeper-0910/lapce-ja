@@ -46,20 +46,20 @@ pub enum EditCommand {
     #[strum(message = "Outdent Line")]
     #[strum(serialize = "outdent_line")]
     OutdentLine,
-    #[strum(message = "Toggle Line Comment")]
+    #[strum(message = "行コメントの切り替え")]
     #[strum(serialize = "toggle_line_comment")]
     ToggleLineComment,
-    #[strum(serialize = "undo")]
+    #[strum(serialize = "戻す")]
     Undo,
-    #[strum(serialize = "redo")]
+    #[strum(serialize = "進む")]
     Redo,
-    #[strum(message = "Copy")]
+    #[strum(message = "コピー")]
     #[strum(serialize = "clipboard_copy")]
     ClipboardCopy,
-    #[strum(message = "Cut")]
+    #[strum(message = "切り取り")]
     #[strum(serialize = "clipboard_cut")]
     ClipboardCut,
-    #[strum(message = "Paste")]
+    #[strum(message = "貼り付け")]
     #[strum(serialize = "clipboard_paste")]
     ClipboardPaste,
     #[strum(serialize = "yank")]
@@ -110,10 +110,10 @@ pub enum MoveCommand {
     WordForward,
     #[strum(serialize = "word_end_forward")]
     WordEndForward,
-    #[strum(message = "Document Start")]
+    #[strum(message = "文書の始まり")]
     #[strum(serialize = "document_start")]
     DocumentStart,
-    #[strum(message = "Document End")]
+    #[strum(message = "文書の終わり")]
     #[strum(serialize = "document_end")]
     DocumentEnd,
     #[strum(serialize = "line_end")]
@@ -239,10 +239,10 @@ pub enum FocusCommand {
     #[strum(serialize = "show_code_actions")]
     ShowCodeActions,
     /// This will close a modal, such as the settings window or completion
-    #[strum(message = "Close Modal")]
+    #[strum(message = "モーダルを閉じる")]
     #[strum(serialize = "modal.close")]
     ModalClose,
-    #[strum(message = "Go to Definition")]
+    #[strum(message = "定義へ移動")]
     #[strum(serialize = "goto_definition")]
     GotoDefinition,
     #[strum(serialize = "jump_location_backward")]
@@ -253,17 +253,17 @@ pub enum FocusCommand {
     NextError,
     #[strum(serialize = "previous_error")]
     PreviousError,
-    #[strum(message = "Go to Next Difference")]
+    #[strum(message = "次の差分へ移動")]
     #[strum(serialize = "next_diff")]
     NextDiff,
-    #[strum(message = "Go to Previous Difference")]
+    #[strum(message = "前の差分へ移動")]
     #[strum(serialize = "previous_diff")]
     PreviousDiff,
-    #[strum(message = "Toggle Code Lens")]
+    #[strum(message = "Code Lensの切り替え")]
     #[strum(serialize = "toggle_code_lens")]
     ToggleCodeLens,
     #[strum(serialize = "format_document")]
-    #[strum(message = "Format Document")]
+    #[strum(message = "文書のフォーマット")]
     FormatDocument,
     #[strum(serialize = "search")]
     Search,
@@ -273,7 +273,7 @@ pub enum FocusCommand {
     InlineFindLeft,
     #[strum(serialize = "repeat_last_inline_find")]
     RepeatLastInlineFind,
-    #[strum(message = "Save")]
+    #[strum(message = "保存")]
     #[strum(serialize = "save")]
     Save,
     #[strum(serialize = "save_and_exit")]
