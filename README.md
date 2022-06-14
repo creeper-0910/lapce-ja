@@ -5,7 +5,7 @@
   </a>
 </h1>
 
-<h4 align="center">Lightning-fast And Powerful Code Editor</h4>
+<h4 align="center">高速でパワフルなコードエディター</h4>
 
 <div align="center">
   <a href="https://github.com/lapce/lapce/actions/workflows/ci.yml" target="_blank">
@@ -24,7 +24,7 @@
 <br/>
 
 
-Lapce is written in pure Rust with a UI in [Druid](https://github.com/linebender/druid) (which is also written in Rust). It is designed with [Rope Science](https://xi-editor.io/docs/rope_science_00.html) from the [Xi-Editor](https://github.com/xi-editor/xi-editor) which makes for lightning-fast computation, and leverages [OpenGL](https://www.opengl.org/) for rendering. More information about the features of Lapce can be found on the [main website](https://lapce.dev) and user documentation can be found on [GitBook](https://docs.lapce.dev/).
+Lapceは純粋なRustで書かれており、UIは [Druid](https://github.com/linebender/druid) (これもRustで作成されています) のUIを使用して純粋なRustで記述されています。 [Rope Science](https://xi-editor.io/docs/rope_science_00.html) の [Xi-Editor](https://github.com/xi-editor/xi-editor) を使って設計されているので、計算が非常に速いです。レンダリングには [OpenGL](https://www.opengl.org/) を利用しています。Lapce の機能についての詳細は [Lapceのウェブサイト](https://lapce.dev) から、ユーザードキュメントは [GitBook](https://docs.lapce.dev/) から閲覧が可能です。
 
 ![](https://github.com/lapce/lapce/blob/master/extra/images/screenshot.png?raw=true)
 
