@@ -276,11 +276,11 @@ impl Widget<LapceTabData> for LapceSettingsPanel {
         ctx.with_save(|ctx| {
             ctx.clip(self.switcher_rect);
             const SETTINGS_SECTIONS: [&str; 6] = [
-                "Core Settings",
-                "UI Settings",
-                "Editor Settings",
-                "Terminal Settings",
-                "Theme Settings",
+                "Coreの設定",
+                "UIの設定",
+                "Editorの設定",
+                "Terminalの設定",
+                "Themeの設定",
                 "Keybindings",
             ];
 

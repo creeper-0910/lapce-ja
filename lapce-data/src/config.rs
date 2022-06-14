@@ -106,14 +106,14 @@ impl LapceTheme {
 
 #[derive(Error, Debug)]
 pub enum LoadThemeError {
-    #[error("themes folder not found, possibly it could not be created")]
+    #[error("themes folderが見つからない、もしくは作成されていない可能性があります")]
     ThemesFolderNotFound,
-    #[error("theme file ({theme_name}.toml) was not found in {themes_folder:?}")]
+    #[error("theme file ({theme_name}.toml) は {themes_folder:?} 内に見つかりませんでした")]
     FileNotFound {
         themes_folder: PathBuf,
         theme_name: String,
     },
-    #[error("There was an error reading the theme file")]
+    #[error("theme fileの読み込み中に問題が発生しました")]
     Read(std::io::Error),
 }
 
@@ -124,31 +124,31 @@ pub trait GetConfig {
 #[derive(FieldNames, Debug, Clone, Deserialize, Serialize, Default)]
 #[serde(rename_all = "kebab-case")]
 pub struct LapceConfig {
-    #[field_names(desc = "Enable modal editing (Vim like)")]
+    #[field_names(desc = "modal編集の有効化 (Vim like)")]
     pub modal: bool,
-    #[field_names(desc = "Set the color theme of Lapce")]
+    #[field_names(desc = "Lapceのcolor themeを設定します")]
     pub color_theme: String,
 }
 
 #[derive(FieldNames, Debug, Clone, Deserialize, Serialize, Default)]
 #[serde(rename_all = "kebab-case")]
 pub struct EditorConfig {
-    #[field_names(desc = "Set the editor font family")]
+    #[field_names(desc = "editorのfont familyを設定します")]
     pub font_family: String,
-    #[field_names(desc = "Set the editor font size")]
+    #[field_names(desc = "editorのfont sizeを設定します")]
     pub font_size: usize,
-    #[field_names(desc = "Set the font size in the code lens")]
+    #[field_names(desc = "code-lensのfont sizeを設定します")]
     pub code_lens_font_size: usize,
-    #[field_names(desc = "Set the editor line height")]
+    #[field_names(desc = "editorの行の高さを設定します")]
     pub line_height: usize,
-    #[field_names(desc = "Set the tab width")]
+    #[field_names(desc = "tabの幅を設定します")]
     pub tab_width: usize,
-    #[field_names(desc = "If opened editors are shown in a tab")]
+    #[field_names(desc = "開いたeditorをtabで表示する場合")]
     pub show_tab: bool,
-    #[field_names(desc = "If the editor can scroll beyong the last line")]
+    #[field_names(desc = "editorが最終行までscrollできる場合")]
     pub scroll_beyond_last_line: bool,
     #[field_names(
-        desc = "How long (in ms) it should take before the hover information appears"
+        desc = "hover時に情報が表示されるまでの時間(ms)"
     )]
     pub hover_delay: u64,
 }
@@ -163,31 +163,31 @@ impl EditorConfig {
 #[serde(rename_all = "kebab-case")]
 pub struct UIConfig {
     #[field_names(
-        desc = "Set the ui font family. If empty, it uses system default."
+        desc = "uiのfont familyを設定します。空の場合、systemの標準設定が使用されます"
     )]
     font_family: String,
 
-    #[field_names(desc = "Set the ui base font size")]
+    #[field_names(desc = "uiのbase font sizeを設定する")]
     font_size: usize,
 
     #[field_names(
-        desc = "Set the header height for panel header and editor tab header"
+        desc = "panel headerとeditor tab headerの高さを設定する"
     )]
     header_height: usize,
 
-    #[field_names(desc = "Set the height for status line")]
+    #[field_names(desc = "status lineの高さを設定する")]
     status_height: usize,
 
-    #[field_names(desc = "Set the minium width for editor tab")]
+    #[field_names(desc = "editor tabの最小幅を設定する")]
     tab_min_width: usize,
 
-    #[field_names(desc = "Set the width for activity bar")]
+    #[field_names(desc = "activity barの幅を設定する")]
     activity_width: usize,
 
-    #[field_names(desc = "Set the width for scroll bar")]
+    #[field_names(desc = "scroll barの幅を設定する")]
     scroll_width: usize,
 
-    #[field_names(desc = "Controls the width of drop shadow in the UI")]
+    #[field_names(desc = "uiのdrop shadowの幅を制御します")]
     drop_shadow_width: usize,
 }
 
@@ -235,18 +235,18 @@ impl UIConfig {
 #[serde(rename_all = "kebab-case")]
 pub struct TerminalConfig {
     #[field_names(
-        desc = "Set the terminal font family. If empty, it uses editor font famliy."
+        desc = "terminalのfont familyを設定します。空の場合、editorの設定が使用されます"
     )]
     pub font_family: String,
     #[field_names(
-        desc = "Set the terminal font size, If 0, it uses editor font size."
+        desc = "terminalのfont sizeを設定します。0の場合、editorのfont sizeが使用されます"
     )]
     pub font_size: usize,
     #[field_names(
-        desc = "Set the terminal line height, If 0, it uses editor line height"
+        desc = "terminalの行の高さを設定します"
     )]
     pub line_height: usize,
-    #[field_names(desc = "Set the terminal Shell")]
+    #[field_names(desc = "terminal Shellの設定")]
     pub shell: String,
 }
 

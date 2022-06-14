@@ -46,14 +46,14 @@ pub enum EditCommand {
     #[strum(message = "Outdent Line")]
     #[strum(serialize = "outdent_line")]
     OutdentLine,
-    #[strum(message = "行コメントの切り替え")]
+    #[strum(message = "行commentの切り替え")]
     #[strum(serialize = "toggle_line_comment")]
     ToggleLineComment,
     #[strum(serialize = "戻す")]
     Undo,
     #[strum(serialize = "進む")]
     Redo,
-    #[strum(message = "コピー")]
+    #[strum(message = "copy")]
     #[strum(serialize = "clipboard_copy")]
     ClipboardCopy,
     #[strum(message = "切り取り")]
@@ -239,7 +239,7 @@ pub enum FocusCommand {
     #[strum(serialize = "show_code_actions")]
     ShowCodeActions,
     /// This will close a modal, such as the settings window or completion
-    #[strum(message = "モーダルを閉じる")]
+    #[strum(message = "modalを閉じる")]
     #[strum(serialize = "modal.close")]
     ModalClose,
     #[strum(message = "定義へ移動")]
@@ -259,11 +259,11 @@ pub enum FocusCommand {
     #[strum(message = "前の差分へ移動")]
     #[strum(serialize = "previous_diff")]
     PreviousDiff,
-    #[strum(message = "Code Lensの切り替え")]
+    #[strum(message = "Code-Lensの切り替え")]
     #[strum(serialize = "toggle_code_lens")]
     ToggleCodeLens,
     #[strum(serialize = "format_document")]
-    #[strum(message = "文書のフォーマット")]
+    #[strum(message = "文書のformat")]
     FormatDocument,
     #[strum(serialize = "search")]
     Search,
