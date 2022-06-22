@@ -438,7 +438,7 @@ impl LapceTab {
                         palette_data.update_input(ctx, pattern.to_owned());
                         data.palette = palette_data.palette.clone();
                     }
-                    LapceUICommand::UpdateSearch(pattern) => {
+                    LapceUICommand::UpdateSearchInput(pattern) => {
                         let doc = data
                             .main_split
                             .local_docs
@@ -447,6 +447,8 @@ impl LapceTab {
                         if &doc.buffer().text().to_string() != pattern {
                             Arc::make_mut(doc).reload(Rope::from(pattern), true);
                         }
+                    }
+                    LapceUICommand::UpdateSearch(pattern) => {
                         if pattern.is_empty() {
                             Arc::make_mut(&mut data.find).unset();
                             Arc::make_mut(&mut data.search).matches =
@@ -660,10 +662,10 @@ impl LapceTab {
 
                         let mut errors = 0;
                         let mut warnings = 0;
-                        for (_, diagnositics) in data.main_split.diagnostics.iter() {
-                            for diagnositic in diagnositics.iter() {
+                        for (_, diagnostics) in data.main_split.diagnostics.iter() {
+                            for diagnostic in diagnostics.iter() {
                                 if let Some(severity) =
-                                    diagnositic.diagnostic.severity
+                                    diagnostic.diagnostic.severity
                                 {
                                     match severity {
                                         DiagnosticSeverity::Error => errors += 1,
@@ -676,6 +678,10 @@ impl LapceTab {
                         data.main_split.error_count = errors;
                         data.main_split.warning_count = warnings;
 
+                        ctx.set_handled();
+                    }
+                    LapceUICommand::DocumentSave(path, exit) => {
+                        data.main_split.document_save(ctx, path, *exit);
                         ctx.set_handled();
                     }
                     LapceUICommand::DocumentFormatAndSave(

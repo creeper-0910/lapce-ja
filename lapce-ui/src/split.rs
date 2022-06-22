@@ -872,7 +872,7 @@ impl Widget<LapceTabData> for LapceSplit {
                     LapceUICommand::SplitReplace(usize, content) => {
                         self.split_replace(ctx, data, *usize, content);
                     }
-                    LapceUICommand::SplitChangeDirectoin(direction) => {
+                    LapceUICommand::SplitChangeDirection(direction) => {
                         self.direction = *direction;
                     }
                     LapceUICommand::SplitExchange(content) => {
@@ -1087,6 +1087,7 @@ impl Widget<LapceTabData> for LapceSplit {
                     data,
                     env,
                 );
+                child.widget.set_origin(ctx, data, env, next_origin);
                 let cross_size = self.direction.cross_size(size);
                 if cross_size > max_other_axis {
                     max_other_axis = cross_size;

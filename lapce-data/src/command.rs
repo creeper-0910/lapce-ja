@@ -47,7 +47,7 @@ pub const LAPCE_UI_COMMAND: Selector<LapceUICommand> =
 #[derive(Clone, Debug)]
 pub struct LapceCommand {
     pub kind: CommandKind,
-    pub data: Option<serde_json::Value>,
+    pub data: Option<Value>,
 }
 
 #[derive(Clone, Debug)]
@@ -221,21 +221,21 @@ pub enum LapceWorkbenchCommand {
     #[strum(message = "log fileを開く")]
     OpenLogFile,
 
-    #[strum(serialize = "close_tab")]
-    #[strum(message = "現在のtabを閉じる")]
-    CloseTab,
+    #[strum(serialize = "close_window_tab")]
+    #[strum(message = "現在のWindow Tabを閉じる")]
+    CloseWindowTab,
 
-    #[strum(serialize = "new_tab")]
-    #[strum(message = "新しいtabを開く")]
-    NewTab,
+    #[strum(serialize = "new_window_tab")]
+    #[strum(message = "新しいWindow Tabを作成する")]
+    NewWindowTab,
 
-    #[strum(serialize = "next_tab")]
-    #[strum(message = "次のtabへ移動する")]
-    NextTab,
+    #[strum(serialize = "next_window_tab")]
+    #[strum(message = "次のWindow Tabへ")]
+    NextWindowTab,
 
-    #[strum(serialize = "previous_tab")]
-    #[strum(message = "前のtabに移動する")]
-    PreviousTab,
+    #[strum(serialize = "previous_window_tab")]
+    #[strum(message = "前のWindow Tabへ")]
+    PreviousWindowTab,
 
     #[strum(serialize = "reload_window")]
     #[strum(message = "windowの再読み込み")]
@@ -300,6 +300,7 @@ pub enum LapceWorkbenchCommand {
     TogglePanelVisual,
 
     // Focus toggle commands
+    #[strum(message = "Toggle Terminal Focus")]
     #[strum(serialize = "toggle_terminal_focus")]
     ToggleTerminalFocus,
 
@@ -403,6 +404,7 @@ pub enum LapceUICommand {
     },
     ShowAlert(AlertContentData),
     ShowMenu(Point, Arc<Vec<MenuKind>>),
+    UpdateSearchInput(String),
     UpdateSearch(String),
     GlobalSearchResult(String, Arc<HashMap<PathBuf, Vec<Match>>>),
     CancelFilePicker,
@@ -422,7 +424,7 @@ pub enum LapceUICommand {
     Hide,
     ResignFocus,
     Focus,
-    EnsureEditorTabActiveVisble,
+    EnsureEditorTabActiveVisible,
     FocusSourceControl,
     ShowSettings,
     ShowKeybindings,
@@ -435,7 +437,7 @@ pub enum LapceUICommand {
     FilterPaletteItems(String, String, Vec<PaletteItem>),
     UpdateKeymapsFilter(String),
     ResetSettingsFile(String, String),
-    UpdateSettingsFile(String, String, serde_json::Value),
+    UpdateSettingsFile(String, String, Value),
     UpdateSettingsFilter(String),
     FilterKeymaps(String, Arc<Vec<KeyMap>>, Arc<Vec<LapceCommand>>),
     UpdatePickerPwd(PathBuf),
@@ -463,6 +465,7 @@ pub enum LapceUICommand {
     ApplyEditsAndSave(usize, u64, Result<Value>),
     DocumentFormat(PathBuf, u64, Result<Value>),
     DocumentFormatAndSave(PathBuf, u64, Result<Value>, Option<WidgetId>),
+    DocumentSave(PathBuf, Option<WidgetId>),
     BufferSave(PathBuf, u64, Option<WidgetId>),
     UpdateSemanticStyles(BufferId, PathBuf, u64, Arc<Spans<Style>>),
     UpdateTerminalTitle(TermId, String),
@@ -516,7 +519,7 @@ pub enum LapceUICommand {
     SplitMove(SplitMoveDirection),
     SplitAdd(usize, SplitContent, bool),
     SplitReplace(usize, SplitContent),
-    SplitChangeDirectoin(SplitDirection),
+    SplitChangeDirection(SplitDirection),
     EditorTabAdd(usize, EditorTabChild),
     EditorTabRemove(usize, bool, bool),
     EditorTabSwap(usize, usize),

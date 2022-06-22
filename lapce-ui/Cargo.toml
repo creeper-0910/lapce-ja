@@ -51,6 +51,9 @@ lapce-core = { path = "../lapce-core" }
 lapce-data = { path = "../lapce-data" }
 lapce-rpc = { path = "../lapce-rpc" }
 
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1.12"
+
 [features]
 default = ["all-languages"]
 # To build lapce with only some of the supported languages, for example:
@@ -73,8 +76,20 @@ all-languages = [
     "lang-json",
     "lang-md",
     "lang-html",
-    "lang-java"
+    "lang-java",
+    "lang-elm",
+    "lang-swift",
+    "lang-ql",
+    "lang-haskell",
+    "lang-ocaml",
+    "lang-glimmer",
+    "lang-haxe",
+    "lang-hcl",
+    "lang-scss",
+    "lang-hare"
+
 ]
+
 lang-rust = ["lapce-core/lang-rust"]
 lang-go = ["lapce-core/lang-go"]
 lang-javascript= ["lapce-core/lang-javascript"]
@@ -90,3 +105,13 @@ lang-json= ["lapce-core/lang-json"]
 lang-md = ["lapce-core/lang-md"]
 lang-html = ["lapce-core/lang-html"]
 lang-java = ["lapce-core/lang-java"]
+lang-elm = ["lapce-core/lang-elm"]
+lang-swift = ["lapce-core/lang-swift"]
+lang-ql = ["lapce-core/lang-ql"]
+lang-haskell = ["lapce-core/lang-haskell"]
+lang-ocaml = ["lapce-core/lang-ocaml"]
+lang-glimmer = ["lapce-core/lang-glimmer"]
+lang-haxe = ["lapce-core/lang-haxe"]
+lang-hcl = ["lapce-core/lang-hcl"]
+lang-scss = ["lapce-core/lang-scss"]
+lang-hare = ["lapce-core/lang-hare"]

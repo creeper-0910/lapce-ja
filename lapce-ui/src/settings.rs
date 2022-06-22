@@ -72,7 +72,7 @@ impl LapceSettingsPanel {
             WidgetPod::new(
                 LapceSettings::new_split(LapceSettingsKind::Terminal, data).boxed(),
             ),
-            WidgetPod::new(ThemeSettings::new().boxed()),
+            WidgetPod::new(ThemeSettings::new_boxed().boxed()),
             WidgetPod::new(LapceKeymap::new_split(data).boxed()),
         ];
         Self {
@@ -363,7 +363,7 @@ impl LapceSettings {
     fn update_children(&mut self, ctx: &mut EventCtx, data: &mut LapceTabData) {
         self.children.clear();
 
-        let (kind, fileds, descs, settings) = match self.kind {
+        let (kind, fields, descs, settings) = match self.kind {
             LapceSettingsKind::Core => {
                 let settings: HashMap<String, serde_json::Value> =
                     serde_json::from_value(
@@ -418,7 +418,7 @@ impl LapceSettings {
             }
         };
 
-        for (i, field) in fileds.into_iter().enumerate() {
+        for (i, field) in fields.into_iter().enumerate() {
             let field = field.replace('_', "-");
             self.children.push(WidgetPod::new(
                 LapcePadding::new(
@@ -1016,7 +1016,7 @@ pub struct ThemeSettings {
 }
 
 impl ThemeSettings {
-    fn new() -> Box<dyn Widget<LapceTabData>> {
+    fn new_boxed() -> Box<dyn Widget<LapceTabData>> {
         LapceScroll::new(
             LapceSplit::new(WidgetId::next())
                 .horizontal()
@@ -1151,11 +1151,8 @@ impl Widget<LapceTabData> for ThemeSettings {
                 self.mouse_down_rect = None;
                 for (key, default, change) in self.changed_rects.iter() {
                     if change.contains(mouse_event.pos) {
-                        self.mouse_down_rect = Some((
-                            key.to_string(),
-                            default.to_string(),
-                            change.clone(),
-                        ));
+                        self.mouse_down_rect =
+                            Some((key.to_string(), default.to_string(), *change));
                     }
                 }
             }
@@ -1382,7 +1379,7 @@ impl Widget<LapceTabData> for ThemeSettings {
         for (i, input) in self.inputs.iter_mut().enumerate() {
             let text_layout = &self.text_layouts.as_ref().unwrap()[i];
             ctx.draw_text(
-                &text_layout,
+                text_layout,
                 Point::new(
                     0.0,
                     input.layout_rect().y0

@@ -1,7 +1,9 @@
 use druid::{
-    AppDelegate, AppLauncher, Command, Env, Event, LocalizedString, Menu, MenuItem,
-    Point, Size, SysMods, Widget, WidgetExt, WindowDesc, WindowHandle, WindowId,
+    AppDelegate, AppLauncher, Command, Env, Event, LocalizedString, Point, Size,
+    Widget, WidgetExt, WindowDesc, WindowHandle, WindowId, WindowState,
 };
+#[cfg(target_os = "macos")]
+use druid::{Menu, MenuItem, SysMods};
 use lapce_data::{
     command::{LapceUICommand, LAPCE_UI_COMMAND},
     config::Config,
@@ -32,15 +34,22 @@ pub fn launch() {
                 message
             ))
         })
-        .level(log::LevelFilter::Off)
-        .level_for("piet_wgpu", log::LevelFilter::Info);
+        .level(if cfg!(debug_assertions) {
+            log::LevelFilter::Warn
+        } else {
+            log::LevelFilter::Off
+        })
+        .chain(std::io::stderr());
 
     if let Some(log_file) = Config::log_file().and_then(|f| fern::log_file(f).ok()) {
         log_dispatch = log_dispatch.chain(log_file);
     }
 
     log_dispatch = override_log_levels(log_dispatch);
-    let _ = log_dispatch.apply();
+    match log_dispatch.apply() {
+        Ok(()) => (),
+        Err(e) => eprintln!("Initialising logging failed {e:?}"),
+    }
 
     let mut launcher = AppLauncher::new().delegate(LapceAppDelegate::new());
     let data = LapceData::load(launcher.get_external_handle());
@@ -51,6 +60,7 @@ pub fn launch() {
             root,
             window_data.size,
             window_data.pos,
+            window_data.maximised,
         );
         launcher = launcher.with_window(window);
     }
@@ -64,6 +74,7 @@ fn new_window_desc<W, T: druid::Data>(
     root: W,
     size: Size,
     pos: Point,
+    maximised: bool,
 ) -> WindowDesc<T>
 where
     W: Widget<T> + 'static,
@@ -72,6 +83,9 @@ where
         .title(LocalizedString::new("Lapce").with_placeholder("Lapce"))
         .window_size(size)
         .set_position(pos);
+    if maximised {
+        desc = desc.set_window_state(WindowState::Maximized);
+    }
 
     if let Some(icon) = window_icon() {
         desc = desc.with_window_icon(icon);
@@ -185,35 +199,43 @@ impl AppDelegate<LapceData> for LapceAppDelegate {
         data: &mut LapceData,
         _env: &Env,
     ) -> druid::Handled {
-        if cmd.is(LAPCE_UI_COMMAND) {
-            let command = cmd.get_unchecked(LAPCE_UI_COMMAND);
-            if let LapceUICommand::NewWindow(from_window_id) = command {
-                let (size, pos) = data
-                    .windows
-                    .get(from_window_id)
-                    .map(|win| (win.size, win.pos + (50.0, 50.0)))
-                    .unwrap_or((Size::new(800.0, 600.0), Point::new(0.0, 0.0)));
-                let info = WindowInfo {
-                    size,
-                    pos,
-                    tabs: TabsInfo {
-                        active_tab: 0,
-                        workspaces: vec![],
-                    },
-                };
-                let window_data = LapceWindowData::new(
-                    data.keypress.clone(),
-                    ctx.get_external_handle(),
-                    &info,
-                    data.db.clone(),
-                );
-                let root = build_window(&window_data);
-                let window_id = window_data.window_id;
-                data.windows.insert(window_id, window_data);
-                let desc = new_window_desc(window_id, root, info.size, info.pos);
-                ctx.new_window(desc);
-                return druid::Handled::Yes;
-            }
+        if let Some(LapceUICommand::NewWindow(from_window_id)) =
+            cmd.get(LAPCE_UI_COMMAND)
+        {
+            let (size, pos) = data
+                .windows
+                .get(from_window_id)
+                // If maximised, use default dimensions instead
+                .filter(|win| !win.maximised)
+                .map(|win| (win.size, win.pos + (50.0, 50.0)))
+                .unwrap_or((Size::new(800.0, 600.0), Point::new(0.0, 0.0)));
+            let info = WindowInfo {
+                size,
+                pos,
+                maximised: false,
+                tabs: TabsInfo {
+                    active_tab: 0,
+                    workspaces: vec![],
+                },
+            };
+            let window_data = LapceWindowData::new(
+                data.keypress.clone(),
+                ctx.get_external_handle(),
+                &info,
+                data.db.clone(),
+            );
+            let root = build_window(&window_data);
+            let window_id = window_data.window_id;
+            data.windows.insert(window_id, window_data);
+            let desc = new_window_desc(
+                window_id,
+                root,
+                info.size,
+                info.pos,
+                info.maximised,
+            );
+            ctx.new_window(desc);
+            return druid::Handled::Yes;
         }
         druid::Handled::No
     }
