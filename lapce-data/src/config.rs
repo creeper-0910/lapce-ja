@@ -145,7 +145,7 @@ pub struct EditorConfig {
     pub tab_width: usize,
     #[field_names(desc = "開いたeditorをtabで表示する場合")]
     pub show_tab: bool,
-    #[field_names(desc = "editorが最終行までscrollできる場合")]
+    #[field_names(desc = "editorが最後の行を超えてscrollできる場合")]
     pub scroll_beyond_last_line: bool,
     #[field_names(
         desc = "hover時に情報が表示されるまでの時間(ms)"
@@ -155,6 +155,10 @@ pub struct EditorConfig {
         desc = "If modal mode should have relative line numbers (though, not in insert mode)"
     )]
     pub modal_mode_relative_line_numbers: bool,
+    #[field_names(
+        desc = "Whether it should format the document on save (if there is an available formatter)"
+    )]
+    pub format_on_save: bool,
 }
 
 impl EditorConfig {
@@ -273,8 +277,8 @@ impl ThemeConfig {
         colors
             .iter()
             .map(|(name, hex)| {
-                if hex.starts_with("$") {
-                    if let Some(c) = base.get(&hex[1..]) {
+                if let Some(stripped) = hex.strip_prefix('$') {
+                    if let Some(c) = base.get(stripped) {
                         return (name.to_string(), c.clone());
                     }
                     if let Some(default) = default {
@@ -286,7 +290,7 @@ impl ThemeConfig {
                 }
 
                 if let Ok(c) = Color::from_hex_str(hex) {
-                    return (name.to_string(), c.clone());
+                    return (name.to_string(), c);
                 }
                 if let Some(default) = default {
                     if let Some(c) = default.get(name) {
@@ -952,7 +956,7 @@ impl Config {
         // `strs` with arbitrary lifetimes. If we 'cheat' by extending the lifetime of the
         // `text_to_measure` (in this function only) then we can safely call `new_text_layout`
         // because the `text_layout` value that is produced is local to this function and hence
-        // always dropped inside this function, and hence its lifetime is always stricly less
+        // always dropped inside this function, and hence its lifetime is always strictly less
         // than the lifetime of `text_to_measure`, irrespective of whether `text_to_measure`
         // is actually static or not.
         //

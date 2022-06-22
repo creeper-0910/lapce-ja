@@ -771,7 +771,7 @@ dependencies = [
 [[package]]
 name = "druid"
 version = "0.7.0"
-source = "git+https://github.com/lapce/druid?branch=shell_opengl#51b6d27561254e1ba4f171a861cb8a44b869b466"
+source = "git+https://github.com/lapce/druid?branch=shell_opengl#5a8f806121332581114a2628b9dc9937b70e52c2"
 dependencies = [
  "console_error_panic_hook",
  "druid-derive",
@@ -794,7 +794,7 @@ dependencies = [
 [[package]]
 name = "druid-derive"
 version = "0.4.0"
-source = "git+https://github.com/lapce/druid?branch=shell_opengl#51b6d27561254e1ba4f171a861cb8a44b869b466"
+source = "git+https://github.com/lapce/druid?branch=shell_opengl#5a8f806121332581114a2628b9dc9937b70e52c2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -804,7 +804,7 @@ dependencies = [
 [[package]]
 name = "druid-shell"
 version = "0.7.0"
-source = "git+https://github.com/lapce/druid?branch=shell_opengl#51b6d27561254e1ba4f171a861cb8a44b869b466"
+source = "git+https://github.com/lapce/druid?branch=shell_opengl#5a8f806121332581114a2628b9dc9937b70e52c2"
 dependencies = [
  "anyhow",
  "bitflags",
@@ -2179,17 +2179,26 @@ dependencies = [
  "tree-sitter-c",
  "tree-sitter-cpp",
  "tree-sitter-elixir",
+ "tree-sitter-elm",
+ "tree-sitter-glimmer",
  "tree-sitter-go",
+ "tree-sitter-haskell",
+ "tree-sitter-haxe",
+ "tree-sitter-hcl",
  "tree-sitter-highlight",
  "tree-sitter-html",
  "tree-sitter-java",
  "tree-sitter-javascript",
  "tree-sitter-json",
  "tree-sitter-md",
+ "tree-sitter-ocaml",
  "tree-sitter-php",
  "tree-sitter-python",
+ "tree-sitter-ql",
  "tree-sitter-ruby",
  "tree-sitter-rust",
+ "tree-sitter-scss",
+ "tree-sitter-swift",
  "tree-sitter-toml",
  "tree-sitter-typescript",
  "xi-rope",
@@ -2345,6 +2354,7 @@ dependencies = [
  "toml",
  "unicode-segmentation",
  "unicode-width",
+ "winres",
  "xi-rope",
  "xi-unicode",
 ]
@@ -4568,10 +4578,56 @@ dependencies = [
 ]
 
 [[package]]
+name = "tree-sitter-elm"
+version = "5.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d4c28acbbdb8a0d72a5eb181e05d29f664e6631c3182f1e3d9974ae900addf3"
+dependencies = [
+ "cc",
+ "tree-sitter",
+]
+
+[[package]]
+name = "tree-sitter-glimmer"
+version = "0.0.1"
+source = "git+https://github.com/VixieTSQ/tree-sitter-glimmer#d8a41791e83d445ef52748429cea6fed974908e7"
+dependencies = [
+ "cc",
+ "tree-sitter",
+]
+
+[[package]]
 name = "tree-sitter-go"
 version = "0.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71967701c8214be4aa77e0260e98361e6fd71ceec1d9d03abb37a22c9f60d0ff"
+dependencies = [
+ "cc",
+ "tree-sitter",
+]
+
+[[package]]
+name = "tree-sitter-haskell"
+version = "0.14.0"
+source = "git+https://github.com/tree-sitter/tree-sitter-haskell#14bf3061a3fbcadab428fb5e50eb2c5b1f9be0c3"
+dependencies = [
+ "cc",
+ "tree-sitter",
+]
+
+[[package]]
+name = "tree-sitter-haxe"
+version = "0.0.1"
+source = "git+https://github.com/VixieTSQ/tree-sitter-haxe#a3e23bc0f84a53371eb5d86229782ec6c21d3729"
+dependencies = [
+ "cc",
+ "tree-sitter",
+]
+
+[[package]]
+name = "tree-sitter-hcl"
+version = "0.0.1"
+source = "git+https://github.com/VixieTSQ/tree-sitter-hcl#f4aa4553344e03e149ec459549a7f686d6846626"
 dependencies = [
  "cc",
  "tree-sitter",
@@ -4637,6 +4693,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tree-sitter-ocaml"
+version = "0.20.0"
+source = "git+https://github.com/tree-sitter/tree-sitter-ocaml#cc26b1ef111100f26a137bcbcd39fd4e35be9a59"
+dependencies = [
+ "cc",
+ "tree-sitter",
+]
+
+[[package]]
 name = "tree-sitter-php"
 version = "0.19.1"
 source = "git+https://github.com/tree-sitter/tree-sitter-php.git#ead3e4cc5f54602a6b54826c5d6881c9a9da15af"
@@ -4656,6 +4721,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tree-sitter-ql"
+version = "0.19.0"
+source = "git+https://github.com/tree-sitter/tree-sitter-ql#b2c2364e833cc9f1afa243ac367f1475330fef63"
+dependencies = [
+ "cc",
+ "tree-sitter",
+]
+
+[[package]]
 name = "tree-sitter-ruby"
 version = "0.19.0"
 source = "git+https://github.com/Liberatys/tree-sitter-ruby.git?branch=chore/allow-range-of-tree-sitter#26086eeb072266abf51273af631a2cb62d0fd1e8"
@@ -4669,6 +4743,25 @@ name = "tree-sitter-rust"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3df540a493d754015d22eaf57c38f58804be3713a22f6062db983ec15f85c3c9"
+dependencies = [
+ "cc",
+ "tree-sitter",
+]
+
+[[package]]
+name = "tree-sitter-scss"
+version = "0.0.1"
+source = "git+https://github.com/VixieTSQ/tree-sitter-scss?branch=patch-1#3aac3391ede5098edbf4cc8a9f6d0cfdfe28e5dc"
+dependencies = [
+ "cc",
+ "tree-sitter",
+]
+
+[[package]]
+name = "tree-sitter-swift"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "090310d23c7a0a96cece88376ad7acf53ce47a036a64145ef2523a336c1d2051"
 dependencies = [
  "cc",
  "tree-sitter",
@@ -5485,6 +5578,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "80d0f4e272c85def139476380b12f9ac60926689dd2e01d4923222f40580869d"
 dependencies = [
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "winres"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b68db261ef59e9e52806f688020631e987592bd83619edccda9c47d42cde4f6c"
+dependencies = [
+ "toml",
 ]
 
 [[package]]

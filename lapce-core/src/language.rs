@@ -130,6 +130,28 @@ pub enum LapceLanguage {
     Html,
     #[cfg(feature = "lang-java")]
     Java,
+    #[cfg(feature = "lang-elm")]
+    Elm,
+    #[cfg(feature = "lang-swift")]
+    Swift,
+    #[cfg(feature = "lang-ql")]
+    QL,
+    #[cfg(feature = "lang-haskell")]
+    Haskell,
+    #[cfg(feature = "lang-glimmer")]
+    Glimmer,
+    #[cfg(feature = "lang-haxe")]
+    Haxe,
+    #[cfg(feature = "lang-hcl")]
+    HCL,
+    #[cfg(feature = "lang-ocaml")]
+    OCaml,
+    #[cfg(feature = "lang-ocaml")]
+    OCamlInterface,
+    #[cfg(feature = "lang-scss")]
+    SCSS,
+    #[cfg(feature = "lang-hare")]
+    Hare,
 }
 
 // NOTE: Elements in the array must be in the same order as the enum variants of
@@ -328,6 +350,116 @@ const LANGUAGES: &[SyntaxProperties] = &[
         code_lens: (DEFAULT_CODE_LENS_LIST, DEFAULT_CODE_LENS_IGNORE_LIST),
         extensions: &["java"],
     },
+    #[cfg(feature = "lang-elm")]
+    SyntaxProperties {
+        id: LapceLanguage::Elm,
+        language: tree_sitter_elm::language,
+        highlight: tree_sitter_elm::HIGHLIGHTS_QUERY,
+        comment: "#",
+        indent: "    ",
+        code_lens: (DEFAULT_CODE_LENS_LIST, DEFAULT_CODE_LENS_IGNORE_LIST),
+        extensions: &["elm"],
+    },
+    #[cfg(feature = "lang-swift")]
+    SyntaxProperties {
+        id: LapceLanguage::Swift,
+        language: tree_sitter_swift::language,
+        highlight: tree_sitter_swift::HIGHLIGHTS_QUERY,
+        comment: "//",
+        indent: "  ",
+        code_lens: (DEFAULT_CODE_LENS_LIST, DEFAULT_CODE_LENS_IGNORE_LIST),
+        extensions: &["swift"],
+    },
+    #[cfg(feature = "lang-ql")]
+    SyntaxProperties {
+        id: LapceLanguage::QL,
+        language: tree_sitter_ql::language,
+        highlight: tree_sitter_ql::HIGHLIGHTS_QUERY,
+        comment: "//",
+        indent: "  ",
+        code_lens: (DEFAULT_CODE_LENS_LIST, DEFAULT_CODE_LENS_IGNORE_LIST),
+        extensions: &["ql"],
+    },
+    #[cfg(feature = "lang-haskell")]
+    SyntaxProperties {
+        id: LapceLanguage::Haskell,
+        language: tree_sitter_haskell::language,
+        highlight: tree_sitter_haskell::HIGHLIGHTS_QUERY,
+        comment: "--",
+        indent: "  ",
+        code_lens: (DEFAULT_CODE_LENS_LIST, DEFAULT_CODE_LENS_IGNORE_LIST),
+        extensions: &["hs"],
+    },
+    #[cfg(feature = "lang-glimmer")]
+    SyntaxProperties {
+        id: LapceLanguage::Glimmer,
+        language: tree_sitter_glimmer::language,
+        highlight: tree_sitter_glimmer::HIGHLIGHTS_QUERY,
+        comment: "{{!",
+        indent: "  ",
+        code_lens: (DEFAULT_CODE_LENS_LIST, DEFAULT_CODE_LENS_IGNORE_LIST),
+        extensions: &["hbs"],
+    },
+    #[cfg(feature = "lang-haxe")]
+    SyntaxProperties {
+        id: LapceLanguage::Haxe,
+        language: tree_sitter_haxe::language,
+        highlight: tree_sitter_haxe::HIGHLIGHTS_QUERY,
+        comment: "//",
+        indent: "  ",
+        code_lens: (DEFAULT_CODE_LENS_LIST, DEFAULT_CODE_LENS_IGNORE_LIST),
+        extensions: &["hx"],
+    },
+    #[cfg(feature = "lang-hcl")]
+    SyntaxProperties {
+        id: LapceLanguage::HCL,
+        language: tree_sitter_hcl::language,
+        highlight: tree_sitter_hcl::HIGHLIGHTS_QUERY,
+        comment: "//",
+        indent: "  ",
+        code_lens: (DEFAULT_CODE_LENS_LIST, DEFAULT_CODE_LENS_IGNORE_LIST),
+        extensions: &["hcl"],
+    },
+    #[cfg(feature = "lang-ocaml")]
+    SyntaxProperties {
+        id: LapceLanguage::OCaml,
+        language: tree_sitter_ocaml::language_ocaml,
+        highlight: tree_sitter_ocaml::HIGHLIGHTS_QUERY,
+        comment: "(*",
+        indent: "  ",
+        code_lens: (DEFAULT_CODE_LENS_LIST, DEFAULT_CODE_LENS_IGNORE_LIST),
+        extensions: &["ml"],
+    },
+    #[cfg(feature = "lang-ocaml")]
+    SyntaxProperties {
+        id: LapceLanguage::OCaml,
+        language: tree_sitter_ocaml::language_ocaml_interface,
+        highlight: tree_sitter_ocaml::HIGHLIGHTS_QUERY,
+        comment: "(*",
+        indent: "  ",
+        code_lens: (DEFAULT_CODE_LENS_LIST, DEFAULT_CODE_LENS_IGNORE_LIST),
+        extensions: &["mli"],
+    },
+    #[cfg(feature = "lang-scss")]
+    SyntaxProperties {
+        id: LapceLanguage::SCSS,
+        language: tree_sitter_scss::language,
+        highlight: tree_sitter_scss::HIGHLIGHTS_QUERY,
+        comment: "//",
+        indent: "  ",
+        code_lens: (DEFAULT_CODE_LENS_LIST, DEFAULT_CODE_LENS_IGNORE_LIST),
+        extensions: &["scss"],
+    },
+    #[cfg(feature = "lang-hare")]
+    SyntaxProperties {
+        id: LapceLanguage::Hare,
+        language: tree_sitter_hare::language,
+        highlight: tree_sitter_hare::HIGHLIGHT_QUERY,
+        comment: "//",
+        indent: "        ",
+        code_lens: (DEFAULT_CODE_LENS_LIST, DEFAULT_CODE_LENS_IGNORE_LIST),
+        extensions: &["ha"],
+    },
 ];
 
 impl LapceLanguage {
@@ -492,7 +624,7 @@ mod test {
 
     #[test]
     #[cfg(feature = "lang-elixir")]
-    fn test_exlixir_lang() {
+    fn test_elixir_lang() {
         assert_language(LapceLanguage::Elixir, &["ex"]);
     }
 
@@ -545,5 +677,50 @@ mod test {
     #[cfg(feature = "lang-java")]
     fn test_java_lang() {
         assert_language(LapceLanguage::Java, &["java"]);
+    }
+    #[test]
+    #[cfg(feature = "lang-elm")]
+    fn test_elm_lang() {
+        assert_language(LapceLanguage::Elm, &["elm"]);
+    }
+    #[test]
+    #[cfg(feature = "lang-swift")]
+    fn test_swift_lang() {
+        assert_language(LapceLanguage::Swift, &["swift"]);
+    }
+    #[test]
+    #[cfg(feature = "lang-ql")]
+    fn test_ql_lang() {
+        assert_language(LapceLanguage::QL, &["ql"]);
+    }
+    #[test]
+    #[cfg(feature = "lang-haskell")]
+    fn test_haskell_lang() {
+        assert_language(LapceLanguage::Haskell, &["hs"]);
+    }
+    #[cfg(feature = "lang-glimmer")]
+    fn test_glimmer_lang() {
+        assert_language(LapceLanguage::Glimmer, &["hbs"]);
+    }
+    #[cfg(feature = "lang-haxe")]
+    fn test_haxe_lang() {
+        assert_language(LapceLanguage::Haxe, &["hx"]);
+    }
+    #[cfg(feature = "lang-hcl")]
+    fn test_hcl_lang() {
+        assert_language(LapceLanguage::HCL, &["hcl"]);
+    }
+    #[cfg(feature = "lang-ocaml")]
+    fn test_ocaml_lang() {
+        assert_language(LapceLanguage::OCaml, &["ml"]);
+        assert_language(LapceLanguage::OCamlInterface, &["mli"]);
+    }
+    #[cfg(feature = "lang-scss")]
+    fn test_scss_lang() {
+        assert_language(LapceLanguage::SCSS, &["scss"]);
+    }
+    #[cfg(feature = "lang-hare")]
+    fn test_hare_lang() {
+        assert_language(LapceLanguage::Hare, &["ha"]);
     }
 }

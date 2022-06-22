@@ -222,23 +222,34 @@ impl LapceEditorBufferData {
                 CodeActionOrCommand::Command(_cmd) => {}
                 CodeActionOrCommand::CodeAction(action) => {
                     if let Some(edit) = action.edit.as_ref() {
-                        if let Some(edits) = workspce_edits(edit) {
-                            if let Some(edits) =
-                                edits.get(&Url::from_file_path(&path).unwrap())
-                            {
-                                let path = path.clone();
-                                let doc = self
-                                    .main_split
-                                    .open_docs
-                                    .get_mut(&path)
-                                    .unwrap();
-                                let edits: Vec<(
-                                    lapce_core::selection::Selection,
-                                    &str,
-                                )> = edits
-                                    .iter()
-                                    .map(|edit| {
-                                        let selection =
+                        if let Some(edits) = workspace_edits(edit) {
+                            for (url, edits) in edits {
+                                // TODO: Neither of these methods work for paths
+                                // on different filesystems (i.e. windows and linux),
+                                // as pathbuf is meant to represent a path on the host
+                                let mut matches = false;
+                                // This handles windows drive letters, which rust-url doesn't do.
+                                if let Ok(url_path) = url.to_file_path() {
+                                    matches |= &url_path == path;
+                                }
+                                // This is the previous check, to ensure this isn't a regression
+                                if let Ok(path_url) = Url::from_file_path(path) {
+                                    matches |= path_url == url;
+                                }
+                                if matches {
+                                    let path = path.clone();
+                                    let doc = self
+                                        .main_split
+                                        .open_docs
+                                        .get_mut(&path)
+                                        .unwrap();
+                                    let edits: Vec<(
+                                        lapce_core::selection::Selection,
+                                        &str,
+                                    )> = edits
+                                        .iter()
+                                        .map(|edit| {
+                                            let selection =
                                             lapce_core::selection::Selection::region(
                                                 doc.buffer().offset_of_position(
                                                     &edit.range.start,
@@ -247,14 +258,15 @@ impl LapceEditorBufferData {
                                                     &edit.range.end,
                                                 ),
                                             );
-                                        (selection, edit.new_text.as_str())
-                                    })
-                                    .collect();
-                                self.main_split.edit(
-                                    &path,
-                                    &edits,
-                                    lapce_core::editor::EditType::Other,
-                                );
+                                            (selection, edit.new_text.as_str())
+                                        })
+                                        .collect();
+                                    self.main_split.edit(
+                                        &path,
+                                        &edits,
+                                        lapce_core::editor::EditType::Other,
+                                    );
+                                }
                             }
                         }
                     }
@@ -277,9 +289,10 @@ impl LapceEditorBufferData {
                     })
                     .collect::<Vec<(lapce_core::selection::Selection, &str)>>()
             });
-        let additioal_edit: Option<Vec<_>> = additional_edit.as_ref().map(|edits| {
-            edits.iter().map(|(selection, c)| (selection, *c)).collect()
-        });
+        let additional_edit: Option<Vec<_>> =
+            additional_edit.as_ref().map(|edits| {
+                edits.iter().map(|(selection, c)| (selection, *c)).collect()
+            });
 
         let text_format = item
             .insert_text_format
@@ -304,7 +317,7 @@ impl LapceEditorBufferData {
                                 .do_raw_edit(
                                     &[
                                         &[(&selection, edit.new_text.as_str())][..],
-                                        &additioal_edit.unwrap_or_default()[..],
+                                        &additional_edit.unwrap_or_default()[..],
                                     ]
                                     .concat(),
                                     lapce_core::editor::EditType::InsertChars,
@@ -327,7 +340,7 @@ impl LapceEditorBufferData {
                                 .do_raw_edit(
                                     &[
                                         &[(&selection, text.as_str())][..],
-                                        &additioal_edit.unwrap_or_default()[..],
+                                        &additional_edit.unwrap_or_default()[..],
                                     ]
                                     .concat(),
                                     lapce_core::editor::EditType::InsertChars,
@@ -384,7 +397,7 @@ impl LapceEditorBufferData {
                     &selection,
                     item.insert_text.as_deref().unwrap_or(item.label.as_str()),
                 )][..],
-                &additioal_edit.unwrap_or_default()[..],
+                &additional_edit.unwrap_or_default()[..],
             ]
             .concat(),
             lapce_core::editor::EditType::InsertChars,
@@ -411,7 +424,13 @@ impl LapceEditorBufferData {
         hover.cancel();
     }
 
-    fn update_completion(&mut self, ctx: &mut EventCtx) {
+    /// Update the displayed autocompletion box
+    /// Sends a request to the LSP for completion information
+    fn update_completion(
+        &mut self,
+        ctx: &mut EventCtx,
+        display_if_empty_input: bool,
+    ) {
         if self.get_mode() != Mode::Insert {
             self.cancel_completion();
             return;
@@ -439,7 +458,8 @@ impl LapceEditorBufferData {
                 .to_string()
         };
         let completion = Arc::make_mut(&mut self.completion);
-        if input.is_empty() && char != "." && char != ":" {
+        if !display_if_empty_input && input.is_empty() && char != "." && char != ":"
+        {
             completion.cancel();
             return;
         }
@@ -583,47 +603,6 @@ impl LapceEditorBufferData {
             event_sink,
             self.config.clone(),
         );
-    }
-
-    pub fn update_global_search(&self, ctx: &mut EventCtx, pattern: String) {
-        let tab_id = *self.main_split.tab_id;
-        ctx.submit_command(Command::new(
-            LAPCE_UI_COMMAND,
-            LapceUICommand::UpdateSearch(pattern.to_string()),
-            Target::Widget(tab_id),
-        ));
-        if pattern.is_empty() {
-            ctx.submit_command(Command::new(
-                LAPCE_UI_COMMAND,
-                LapceUICommand::GlobalSearchResult(
-                    pattern,
-                    Arc::new(HashMap::new()),
-                ),
-                Target::Widget(tab_id),
-            ));
-        } else {
-            let event_sink = ctx.get_external_handle();
-            self.proxy.global_search(
-                pattern.clone(),
-                Box::new(move |result| {
-                    if let Ok(matches) = result {
-                        if let Ok(matches) = serde_json::from_value::<
-                            HashMap<PathBuf, Vec<(usize, (usize, usize), String)>>,
-                        >(matches)
-                        {
-                            let _ = event_sink.submit_command(
-                                LAPCE_UI_COMMAND,
-                                LapceUICommand::GlobalSearchResult(
-                                    pattern,
-                                    Arc::new(matches),
-                                ),
-                                Target::Widget(tab_id),
-                            );
-                        }
-                    }
-                }),
-            )
-        }
     }
 
     fn initiate_diagnostics_offset(&mut self) {
@@ -770,9 +749,9 @@ impl LapceEditorBufferData {
                 .main_split
                 .diagnostics
                 .iter()
-                .filter_map(|(path, diagnositics)| {
+                .filter_map(|(path, diagnostics)| {
                     //let buffer = self.get_buffer_from_path(ctx, ui_state, path);
-                    let mut errors: Vec<Position> = diagnositics
+                    let mut errors: Vec<Position> = diagnostics
                         .iter()
                         .filter_map(|d| {
                             let severity = d
@@ -1136,6 +1115,7 @@ impl LapceEditorBufferData {
         }
 
         if let BufferContent::File(path) = self.doc.content() {
+            let format_on_save = self.config.editor.format_on_save;
             let path = path.clone();
             let proxy = self.proxy.clone();
             let buffer_id = self.doc.id();
@@ -1157,16 +1137,15 @@ impl LapceEditorBufferData {
                         |v| v.map_err(|e| anyhow!("{:?}", e)),
                     );
 
-                let _ = event_sink.submit_command(
-                    LAPCE_UI_COMMAND,
-                    LapceUICommand::DocumentFormatAndSave(
-                        path,
-                        rev,
-                        result,
-                        if exit { Some(view_id) } else { None },
-                    ),
-                    Target::Auto,
-                );
+                let exit = if exit { Some(view_id) } else { None };
+                let cmd = if format_on_save {
+                    LapceUICommand::DocumentFormatAndSave(path, rev, result, exit)
+                } else {
+                    LapceUICommand::DocumentSave(path, exit)
+                };
+
+                let _ =
+                    event_sink.submit_command(LAPCE_UI_COMMAND, cmd, Target::Auto);
             });
         } else if let BufferContent::Scratch(..) = self.doc.content() {
             let content = self.doc.content().clone();
@@ -1245,7 +1224,7 @@ impl LapceEditorBufferData {
             }
         }
 
-        self.update_completion(ctx);
+        self.update_completion(ctx, false);
         self.apply_deltas(&deltas);
 
         CommandExecuted::Yes
@@ -1349,7 +1328,7 @@ impl LapceEditorBufferData {
                 let word = self.doc.buffer().slice_to_cow(start..end).to_string();
                 ctx.submit_command(Command::new(
                     LAPCE_UI_COMMAND,
-                    LapceUICommand::UpdateSearch(word.clone()),
+                    LapceUICommand::UpdateSearchInput(word.clone()),
                     Target::Widget(*self.main_split.tab_id),
                 ));
                 Arc::make_mut(&mut self.find).set_find(&word, false, false, true);
@@ -1677,6 +1656,10 @@ impl LapceEditorBufferData {
                     Target::Widget(self.editor.editor_id),
                 ));
             }
+            GetCompletion => {
+                // we allow empty inputs to allow for cases where the user wants to get the autocompletion beforehand
+                self.update_completion(ctx, true);
+            }
             GotoDefinition => {
                 let offset = self.editor.cursor.offset();
                 let start_offset = self.doc.buffer().prev_code_boundary(offset);
@@ -1833,7 +1816,7 @@ impl LapceEditorBufferData {
                         .set_find(&pattern, false, false, false);
                     ctx.submit_command(Command::new(
                         LAPCE_UI_COMMAND,
-                        LapceUICommand::UpdateSearch(pattern),
+                        LapceUICommand::UpdateSearchInput(pattern),
                         Target::Widget(*self.main_split.tab_id),
                     ));
                 }
@@ -1965,7 +1948,7 @@ impl KeyPressFocus for LapceEditorBufferData {
             let cursor = &mut Arc::make_mut(&mut self.editor).cursor;
             let deltas = doc.do_insert(cursor, c);
 
-            self.update_completion(ctx);
+            self.update_completion(ctx, false);
             self.cancel_hover();
             self.apply_deltas(&deltas);
         } else if let Some(direction) = self.editor.inline_find.clone() {
@@ -2108,7 +2091,7 @@ fn process_get_references(
     Ok(())
 }
 
-fn workspce_edits(edit: &WorkspaceEdit) -> Option<HashMap<Url, Vec<TextEdit>>> {
+fn workspace_edits(edit: &WorkspaceEdit) -> Option<HashMap<Url, Vec<TextEdit>>> {
     if let Some(changes) = edit.changes.as_ref() {
         return Some(changes.clone());
     }
