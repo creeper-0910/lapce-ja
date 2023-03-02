@@ -6,19 +6,20 @@ use alacritty_terminal::{
     grid::{Dimensions, Scroll},
     index::{Direction, Side},
     selection::{Selection, SelectionType},
-    term::{search::RegexSearch, SizeInfo, TermMode},
+    term::{search::RegexSearch, test::TermSize, TermMode},
     vi_mode::ViMotion,
     Term,
 };
 use druid::{
-    keyboard_types::Key, Application, Color, Command, Env, EventCtx, ExtEventSink,
-    KeyEvent, Modifiers, Target, WidgetId,
+    keyboard_types::Key, Color, Command, Env, EventCtx, ExtEventSink, KeyEvent,
+    Modifiers, Target, WidgetId,
 };
 use hashbrown::HashMap;
 use lapce_core::{
     command::{EditCommand, FocusCommand},
     mode::{Mode, VisualMode},
     movement::{LinePosition, Movement},
+    register::Clipboard,
 };
 use lapce_rpc::terminal::TermId;
 use parking_lot::Mutex;
@@ -27,8 +28,9 @@ use crate::{
     command::{
         CommandExecuted, CommandKind, LapceCommand, LapceUICommand, LAPCE_UI_COMMAND,
     },
-    config::{Config, LapceTheme},
+    config::{LapceConfig, LapceTheme},
     data::LapceWorkspace,
+    document::SystemClipboard,
     find::Find,
     keypress::KeyPressFocus,
     proxy::LapceProxy,
@@ -38,28 +40,111 @@ use crate::{
 pub type TermConfig = alacritty_terminal::config::Config;
 
 #[derive(Clone)]
+pub struct TerminalPanelData {
+    pub widget_id: WidgetId,
+    pub tabs: im::HashMap<WidgetId, TerminalSplitData>,
+    pub tabs_order: Arc<Vec<WidgetId>>,
+    pub active: usize,
+}
+
+impl TerminalPanelData {
+    pub fn new(
+        worksapce: Arc<LapceWorkspace>,
+        proxy: Arc<LapceProxy>,
+        config: &LapceConfig,
+        event_sink: ExtEventSink,
+    ) -> Self {
+        let split = TerminalSplitData::new(worksapce, proxy, config, event_sink);
+        let tabs_order = Arc::new(vec![split.split_id]);
+        let mut tabs = im::HashMap::new();
+        tabs.insert(split.split_id, split);
+        Self {
+            widget_id: WidgetId::next(),
+            tabs,
+            tabs_order,
+            active: 0,
+        }
+    }
+
+    pub fn active_terminal(&self) -> Option<Arc<LapceTerminalData>> {
+        self.active_terminal_split()
+            .and_then(|t| t.terminals.get(&t.active_term_id))
+            .cloned()
+    }
+
+    pub fn active_terminal_mut(&mut self) -> Option<&mut LapceTerminalData> {
+        self.active_terminal_split_mut()
+            .and_then(|t| t.terminals.get_mut(&t.active_term_id))
+            .map(Arc::make_mut)
+    }
+
+    pub fn active_terminal_split(&self) -> Option<&TerminalSplitData> {
+        self.tabs_order
+            .get(self.active)
+            .or_else(|| self.tabs_order.last())
+            .and_then(|id| self.tabs.get(id))
+    }
+
+    pub fn active_terminal_split_mut(&mut self) -> Option<&mut TerminalSplitData> {
+        self.tabs_order
+            .get(self.active)
+            .or_else(|| self.tabs_order.last())
+            .and_then(|id| self.tabs.get_mut(id))
+    }
+
+    pub fn new_tab(
+        &mut self,
+        workspace: Arc<LapceWorkspace>,
+        proxy: Arc<LapceProxy>,
+        config: &LapceConfig,
+        event_sink: ExtEventSink,
+    ) {
+        let active_index = (self.active + 1).min(self.tabs_order.len());
+        let new_term_split =
+            TerminalSplitData::new(workspace, proxy, config, event_sink);
+        let new_term_tab_id = new_term_split.split_id;
+        Arc::make_mut(&mut self.tabs_order).insert(active_index, new_term_tab_id);
+        self.tabs.insert(new_term_tab_id, new_term_split);
+        self.active = active_index;
+    }
+}
+
+#[derive(Clone)]
 pub struct TerminalSplitData {
     pub active: WidgetId,
     pub active_term_id: TermId,
-    pub widget_id: WidgetId,
     pub split_id: WidgetId,
     pub terminals: im::HashMap<TermId, Arc<LapceTerminalData>>,
     pub indexed_colors: Arc<HashMap<u8, Color>>,
 }
 
 impl TerminalSplitData {
-    pub fn new(_proxy: Arc<LapceProxy>) -> Self {
+    pub fn new(
+        workspace: Arc<LapceWorkspace>,
+        proxy: Arc<LapceProxy>,
+        config: &LapceConfig,
+        event_sink: ExtEventSink,
+    ) -> Self {
         let split_id = WidgetId::next();
-        let terminals = im::HashMap::new();
+        let terminal_data = Arc::new(LapceTerminalData::new(
+            workspace, split_id, event_sink, proxy, config,
+        ));
+        let term_id = terminal_data.term_id;
+        let widget_id = terminal_data.widget_id;
+        let mut terminals = im::HashMap::new();
+        terminals.insert(term_id, terminal_data);
 
         Self {
-            active_term_id: TermId::next(),
-            active: WidgetId::next(),
-            widget_id: WidgetId::next(),
+            active_term_id: term_id,
+            active: widget_id,
             split_id,
             terminals,
             indexed_colors: Arc::new(Self::get_indexed_colors()),
         }
+    }
+
+    pub fn active_terminal(&self) -> Option<&Arc<LapceTerminalData>> {
+        self.terminals.get(&self.active_term_id)
     }
 
     pub fn get_indexed_colors() -> HashMap<u8, Color> {
@@ -95,7 +180,7 @@ impl TerminalSplitData {
         &self,
         color: &ansi::Color,
         colors: &alacritty_terminal::term::color::Colors,
-        config: &Config,
+        config: &LapceConfig,
     ) -> Color {
         match color {
             ansi::Color::Named(color) => self.get_named_color(color, config),
@@ -131,7 +216,11 @@ impl TerminalSplitData {
         }
     }
 
-    fn get_named_color(&self, color: &ansi::NamedColor, config: &Config) -> Color {
+    fn get_named_color(
+        &self,
+        color: &ansi::NamedColor,
+        config: &LapceConfig,
+    ) -> Color {
         let (color, alpha) = match color {
             ansi::NamedColor::Cursor => (LapceTheme::TERMINAL_CURSOR, 1.0),
             ansi::NamedColor::Foreground => (LapceTheme::TERMINAL_FOREGROUND, 1.0),
@@ -183,7 +272,7 @@ impl TerminalSplitData {
 
 pub struct LapceTerminalViewData {
     pub terminal: Arc<LapceTerminalData>,
-    pub config: Arc<Config>,
+    pub config: Arc<LapceConfig>,
     pub find: Arc<Find>,
 }
 
@@ -193,7 +282,7 @@ impl LapceTerminalViewData {
     }
 
     fn toggle_visual(&mut self, visual_mode: VisualMode) {
-        if !self.config.lapce.modal {
+        if !self.config.core.modal {
             return;
         }
 
@@ -239,7 +328,9 @@ impl LapceTerminalViewData {
         if let Some(command) = LapceTerminalData::resolve_key_event(key) {
             self.terminal
                 .proxy
+                .proxy_rpc
                 .terminal_write(self.terminal.term_id, command.as_ref());
+            self.terminal.raw.lock().term.scroll_display(Scroll::Bottom);
         }
     }
 }
@@ -261,6 +352,7 @@ impl KeyPressFocus for LapceTerminalViewData {
         _mods: Modifiers,
         _env: &Env,
     ) -> CommandExecuted {
+        let mut clipboard = SystemClipboard {};
         ctx.request_paint();
         match &command.kind {
             CommandKind::Move(cmd) => {
@@ -317,7 +409,7 @@ impl KeyPressFocus for LapceTerminalViewData {
             }
             CommandKind::Edit(cmd) => match cmd {
                 EditCommand::NormalMode => {
-                    if !self.config.lapce.modal {
+                    if !self.config.core.modal {
                         return CommandExecuted::Yes;
                     }
                     self.terminal_mut().mode = Mode::Normal;
@@ -355,13 +447,30 @@ impl KeyPressFocus for LapceTerminalViewData {
                     let mut raw = self.terminal.raw.lock();
                     let term = &mut raw.term;
                     if let Some(content) = term.selection_to_string() {
-                        Application::global().clipboard().put_string(content);
+                        clipboard.put_string(content);
                     }
-                    self.terminal.clear_selection(term);
+                    if self.terminal.mode != Mode::Terminal {
+                        self.terminal.clear_selection(term);
+                    }
                 }
                 EditCommand::ClipboardPaste => {
-                    if let Some(s) = Application::global().clipboard().get_string() {
-                        self.receive_char(ctx, &s);
+                    let mut check_bracketed_paste: bool = false;
+                    if self.terminal.mode == Mode::Terminal {
+                        let mut raw = self.terminal.raw.lock();
+                        let term = &mut raw.term;
+                        self.terminal.clear_selection(term);
+                        if term.mode().contains(TermMode::BRACKETED_PASTE) {
+                            check_bracketed_paste = true;
+                        }
+                    }
+                    if let Some(s) = clipboard.get_string() {
+                        if check_bracketed_paste {
+                            self.receive_char(ctx, "\x1b[200~");
+                            self.receive_char(ctx, &s.replace('\x1b', ""));
+                            self.receive_char(ctx, "\x1b[201~");
+                        } else {
+                            self.receive_char(ctx, &s);
+                        }
                     }
                 }
                 _ => return CommandExecuted::No,
@@ -454,7 +563,11 @@ impl KeyPressFocus for LapceTerminalViewData {
 
     fn receive_char(&mut self, _ctx: &mut EventCtx, c: &str) {
         if self.terminal.mode == Mode::Terminal {
-            self.terminal.proxy.terminal_write(self.terminal.term_id, c);
+            self.terminal
+                .proxy
+                .proxy_rpc
+                .terminal_write(self.terminal.term_id, c);
+            self.terminal.raw.lock().term.scroll_display(Scroll::Bottom);
         }
     }
 }
@@ -466,11 +579,9 @@ pub struct RawTerminal {
 }
 
 impl RawTerminal {
-    pub fn update_content(&mut self, content: &str) {
-        if let Ok(content) = base64::decode(content) {
-            for byte in content {
-                self.parser.advance(&mut self.term, byte);
-            }
+    pub fn update_content(&mut self, content: Vec<u8>) {
+        for byte in content {
+            self.parser.advance(&mut self.term, byte);
         }
     }
 }
@@ -482,14 +593,14 @@ impl RawTerminal {
         event_sink: ExtEventSink,
     ) -> Self {
         let config = TermConfig::default();
-        let size = SizeInfo::new(50.0, 30.0, 1.0, 1.0, 0.0, 0.0, true);
         let event_proxy = EventProxy {
             proxy,
             event_sink,
             term_id,
         };
 
-        let term = Term::new(&config, size, event_proxy);
+        let size = TermSize::new(50, 30);
+        let term = Term::new(&config, &size, event_proxy);
         let parser = ansi::Processor::new();
 
         Self {
@@ -519,7 +630,7 @@ impl LapceTerminalData {
         split_id: WidgetId,
         event_sink: ExtEventSink,
         proxy: Arc<LapceProxy>,
-        config: &Config,
+        config: &LapceConfig,
     ) -> Self {
         let cwd = workspace.path.as_ref().cloned();
         let widget_id = WidgetId::next();
@@ -534,6 +645,14 @@ impl LapceTerminalData {
         let local_proxy = proxy.clone();
         let local_raw = raw.clone();
         let shell = config.terminal.shell.clone();
+
+        // TODO: replace with profile name, once we implement terminal profiles
+        let title = if !shell.is_empty() {
+            shell.clone()
+        } else {
+            String::from("(no title)")
+        };
+
         std::thread::spawn(move || {
             local_proxy.new_terminal(term_id, cwd, shell, local_raw);
         });
@@ -543,7 +662,7 @@ impl LapceTerminalData {
             widget_id,
             view_id,
             split_id,
-            title: "".to_string(),
+            title,
             mode: Mode::Terminal,
             visual_mode: VisualMode::Normal,
             raw,
@@ -552,15 +671,17 @@ impl LapceTerminalData {
     }
 
     pub fn resize(&self, width: usize, height: usize) {
-        let size =
-            SizeInfo::new(width as f32, height as f32, 1.0, 1.0, 0.0, 0.0, true);
+        let width = width.max(1);
+        let height = height.max(1);
+
+        let size = TermSize::new(width, height);
 
         let raw = self.raw.clone();
         let proxy = self.proxy.clone();
         let term_id = self.term_id;
         std::thread::spawn(move || {
             raw.lock().term.resize(size);
-            proxy.terminal_resize(term_id, width, height);
+            proxy.proxy_rpc.terminal_resize(term_id, width, height);
         });
     }
 
@@ -582,7 +703,7 @@ impl LapceTerminalData {
         search_string: &str,
         direction: Direction,
     ) {
-        if let Ok(dfas) = RegexSearch::new(search_string) {
+        if let Ok(dfas) = RegexSearch::new(&regex::escape(search_string)) {
             let mut point = term.renderable_content().cursor.point;
             if direction == Direction::Right {
                 if point.column.0 < term.last_column() {
@@ -777,8 +898,10 @@ impl LapceTerminalData {
             Key::Backspace => {
                 Some(if key.mods.ctrl() {
                     "\x08" // backspace
+                } else if key.mods.alt() {
+                    "\x1b\x7f"
                 } else {
-                    "\x7f" // DEL
+                    "\x7f"
                 })
             }
 
@@ -813,7 +936,7 @@ impl EventListener for EventProxy {
     fn send_event(&self, event: alacritty_terminal::event::Event) {
         match event {
             alacritty_terminal::event::Event::PtyWrite(s) => {
-                self.proxy.terminal_write(self.term_id, &s);
+                self.proxy.proxy_rpc.terminal_write(self.term_id, &s);
             }
             alacritty_terminal::event::Event::Title(title) => {
                 let _ = self.event_sink.submit_command(

@@ -9,7 +9,7 @@ use druid::{
 };
 use lapce_data::{
     command::{LapceUICommand, LAPCE_UI_COMMAND},
-    config::{Config, LapceTheme},
+    config::{LapceConfig, LapceIcons, LapceTheme},
     data::LapceTabData,
     picker::FilePickerData,
 };
@@ -19,7 +19,6 @@ use crate::{
     editor::view::LapceEditorView,
     explorer::{get_item_children, get_item_children_mut},
     scroll::LapceScroll,
-    svg::{file_svg, get_svg},
     tab::LapceButton,
 };
 
@@ -216,10 +215,8 @@ impl Widget<LapceTabData> for FilePickerPwd {
                 ctx.set_handled();
                 if self.icon_hit_test(mouse_event) {
                     ctx.set_cursor(&druid::Cursor::Pointer);
-                    ctx.request_paint();
                 } else {
                     ctx.clear_cursor();
-                    ctx.request_paint();
                 }
             }
             Event::MouseDown(mouse_event) => {
@@ -257,7 +254,7 @@ impl Widget<LapceTabData> for FilePickerPwd {
         data: &LapceTabData,
         env: &Env,
     ) -> Size {
-        let line_height = data.config.editor.line_height as f64;
+        let line_height = data.config.editor.line_height() as f64;
         let input_bc = BoxConstraints::tight(Size::new(
             bc.max().width - 20.0 - line_height - 30.0,
             bc.max().height,
@@ -279,7 +276,7 @@ impl Widget<LapceTabData> for FilePickerPwd {
         let rect = Size::new(icon_size, icon_size)
             .to_rect()
             .with_origin(Point::new(x, gap));
-        let svg = get_svg("arrow-up.svg").unwrap();
+        let svg = data.config.ui_svg(LapceIcons::FILE_PICKER_UP);
         self.icons.push((rect, svg));
 
         self_size
@@ -396,7 +393,10 @@ impl FilePickerExplorer {
                             self.last_left_click = None;
                             ctx.submit_command(Command::new(
                                 LAPCE_UI_COMMAND,
-                                LapceUICommand::OpenFile(node.path_buf.clone()),
+                                LapceUICommand::OpenFile(
+                                    node.path_buf.clone(),
+                                    false,
+                                ),
                                 Target::Widget(data.id),
                             ));
                             picker.active = false;
@@ -440,7 +440,7 @@ impl Widget<LapceTabData> for FilePickerExplorer {
                 let index = ((mouse_event.pos.y + self.line_height)
                     / self.line_height) as usize;
                 ctx.request_paint();
-                if let Some(item) = picker.root.get_file_node_mut(&pwd) {
+                if let Some(item) = picker.root.get_file_node(&pwd) {
                     let (_, node) = get_item_children(0, index, item);
                     if let Some(_node) = node {
                         ctx.set_cursor(&druid::Cursor::Pointer);
@@ -546,7 +546,7 @@ pub fn paint_file_node_item_by_index(
     current: usize,
     active: usize,
     hovered: Option<usize>,
-    config: &Config,
+    config: &LapceConfig,
     toggle_rects: &mut HashMap<usize, Rect>,
 ) -> usize {
     if current > max {
@@ -557,9 +557,9 @@ pub fn paint_file_node_item_by_index(
     }
     if current >= min {
         let background = if current == active {
-            Some(LapceTheme::PANEL_CURRENT)
+            Some(LapceTheme::PANEL_CURRENT_BACKGROUND)
         } else if Some(current) == hovered {
-            Some(LapceTheme::PANEL_HOVERED)
+            Some(LapceTheme::PANEL_HOVERED_BACKGROUND)
         } else {
             None
         };
@@ -582,11 +582,11 @@ pub fn paint_file_node_item_by_index(
         let padding = 15.0 * level as f64;
         if item.is_dir {
             let icon_name = if item.open {
-                "chevron-down.svg"
+                LapceIcons::ITEM_OPENED
             } else {
-                "chevron-right.svg"
+                LapceIcons::ITEM_CLOSED
             };
-            let svg = get_svg(icon_name).unwrap();
+            let svg = config.ui_svg(icon_name);
             let rect = Size::new(svg_size, svg_size)
                 .to_rect()
                 .with_origin(Point::new(1.0 + padding, svg_y));
@@ -598,21 +598,21 @@ pub fn paint_file_node_item_by_index(
             toggle_rects.insert(current, rect);
 
             let icon_name = if item.open {
-                "default_folder_opened.svg"
+                LapceIcons::DIRECTORY_OPENED
             } else {
-                "default_folder.svg"
+                LapceIcons::DIRECTORY_CLOSED
             };
-            let svg = get_svg(icon_name).unwrap();
+            let svg = config.ui_svg(icon_name);
             let rect = Size::new(svg_size, svg_size)
                 .to_rect()
                 .with_origin(Point::new(1.0 + 16.0 + padding, svg_y));
             ctx.draw_svg(&svg, rect, None);
         } else {
-            let svg = file_svg(&item.path_buf);
+            let (svg, svg_color) = config.file_svg(&item.path_buf);
             let rect = Size::new(svg_size, svg_size)
                 .to_rect()
                 .with_origin(Point::new(1.0 + 16.0 + padding, svg_y));
-            ctx.draw_svg(&svg, rect, None);
+            ctx.draw_svg(&svg, rect, svg_color);
         }
         let text_layout = ctx
             .text()
@@ -634,10 +634,7 @@ pub fn paint_file_node_item_by_index(
             .unwrap();
         ctx.draw_text(
             &text_layout,
-            Point::new(
-                38.0 + padding,
-                y + (line_height - text_layout.size().height) / 2.0,
-            ),
+            Point::new(38.0 + padding, y + text_layout.y_offset(line_height)),
         );
     }
     let mut i = current;
@@ -716,6 +713,7 @@ impl FilePickerControl {
                                         LAPCE_UI_COMMAND,
                                         LapceUICommand::OpenFile(
                                             node.path_buf.clone(),
+                                            false,
                                         ),
                                         Target::Widget(data.id),
                                     ));
@@ -753,10 +751,8 @@ impl Widget<LapceTabData> for FilePickerControl {
                 ctx.set_handled();
                 if self.icon_hit_test(mouse_event) {
                     ctx.set_cursor(&druid::Cursor::Pointer);
-                    ctx.request_paint();
                 } else {
                     ctx.clear_cursor();
-                    ctx.request_paint();
                 }
             }
             Event::MouseDown(mouse_event) => {
@@ -871,14 +867,14 @@ impl Widget<LapceTabData> for FilePickerControl {
 
         for btn in self.buttons.iter() {
             ctx.stroke(
-                &btn.rect,
+                btn.rect,
                 data.config.get_color_unchecked(LapceTheme::LAPCE_BORDER),
                 1.0,
             );
             let text_size = btn.text_layout.size();
             let btn_size = btn.rect.size();
             let x = btn.rect.x0 + (btn_size.width - text_size.width) / 2.0;
-            let y = btn.rect.y0 + (btn_size.height - text_size.height) / 2.0;
+            let y = btn.rect.y0 + btn.text_layout.y_offset(btn_size.height);
             ctx.draw_text(&btn.text_layout, Point::new(x, y));
         }
     }
