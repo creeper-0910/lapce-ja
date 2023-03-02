@@ -7,16 +7,17 @@ use druid::{
 use lapce_core::command::FocusCommand;
 use lapce_data::{
     command::{CommandKind, LapceCommand, LAPCE_COMMAND},
-    config::LapceTheme,
+    config::{LapceIcons, LapceTheme},
     data::LapceTabData,
 };
 
-use crate::{editor::view::LapceEditorView, svg::get_svg, tab::LapceIcon};
+use crate::{editor::view::LapceEditorView, tab::LapceIcon};
 
+// Local search widget
 pub struct FindBox {
+    parent_view_id: WidgetId,
     input_width: f64,
     result_width: f64,
-    result_pos: Point,
     input: WidgetPod<LapceTabData, Box<dyn Widget<LapceTabData>>>,
     icons: Vec<LapceIcon>,
     mouse_pos: Point,
@@ -34,7 +35,7 @@ impl FindBox {
             .padding((10.0, 5.0));
         let icons = vec![
             LapceIcon {
-                icon: "arrow-up.svg",
+                icon: LapceIcons::SEARCH_BACKWARD,
                 rect: Rect::ZERO,
                 command: Command::new(
                     LAPCE_COMMAND,
@@ -46,7 +47,7 @@ impl FindBox {
                 ),
             },
             LapceIcon {
-                icon: "arrow-down.svg",
+                icon: LapceIcons::SEARCH_FORWARD,
                 rect: Rect::ZERO,
                 command: Command::new(
                     LAPCE_COMMAND,
@@ -58,7 +59,19 @@ impl FindBox {
                 ),
             },
             LapceIcon {
-                icon: "close.svg",
+                icon: LapceIcons::SEARCH_CASE_SENSITIVE,
+                rect: Rect::ZERO,
+                command: Command::new(
+                    LAPCE_COMMAND,
+                    LapceCommand {
+                        kind: CommandKind::Focus(FocusCommand::ToggleCaseSensitive),
+                        data: None,
+                    },
+                    Target::Widget(parent_view_id),
+                ),
+            },
+            LapceIcon {
+                icon: LapceIcons::CLOSE,
                 rect: Rect::ZERO,
                 command: Command::new(
                     LAPCE_COMMAND,
@@ -71,9 +84,9 @@ impl FindBox {
             },
         ];
         Self {
+            parent_view_id,
             input_width: 200.0,
             result_width: 75.0,
-            result_pos: Point::ZERO,
             input: WidgetPod::new(input.boxed()),
             icons,
             mouse_pos: Point::ZERO,
@@ -113,10 +126,8 @@ impl Widget<LapceTabData> for FindBox {
                 self.mouse_pos = mouse_event.pos;
                 if self.icon_hit_test(mouse_event) {
                     ctx.set_cursor(&druid::Cursor::Pointer);
-                    ctx.request_paint();
                 } else {
                     ctx.clear_cursor();
-                    ctx.request_paint();
                 }
             }
             Event::MouseDown(mouse_event) => {
@@ -138,16 +149,18 @@ impl Widget<LapceTabData> for FindBox {
             BoxConstraints::tight(Size::new(self.input_width, bc.max().height));
         let mut input_size = self.input.layout(ctx, &input_bc, data, env);
         self.input.set_origin(ctx, data, env, Point::ZERO);
+        let icons_len = self.icons.len() as f64;
         let height = input_size.height;
-        let mut width = input_size.width + self.result_width + height * 3.0;
+        let mut width = input_size.width + self.result_width + height * icons_len;
 
         if width - 20.0 > bc.max().width {
             let input_bc = BoxConstraints::tight(Size::new(
-                bc.max().width - height * 3.0 - 20.0 - self.result_width,
+                bc.max().width - height * icons_len - 20.0 - self.result_width,
                 bc.max().height,
             ));
             input_size = self.input.layout(ctx, &input_bc, data, env);
-            width = input_size.width + self.result_width + height * 3.0;
+            self.input.set_origin(ctx, data, env, Point::ZERO);
+            width = input_size.width + self.result_width + height * icons_len;
         }
 
         for (i, icon) in self.icons.iter_mut().enumerate() {
@@ -159,11 +172,6 @@ impl Widget<LapceTabData> for FindBox {
                 ))
                 .inflate(-5.0, -5.0);
         }
-
-        self.result_pos = Point::new(
-            input_size.width,
-            (height - data.config.ui.font_size() as f64) / 2.0,
-        );
 
         Size::new(width, height)
     }
@@ -193,20 +201,7 @@ impl Widget<LapceTabData> for FindBox {
             return;
         }
 
-        let buffer = match data
-            .main_split
-            .editor_tabs
-            .get(&data.main_split.active_tab.unwrap())
-            .unwrap()
-            .active_child()
-        {
-            lapce_data::data::EditorTabChild::Editor(view_id, _, _) => {
-                data.editor_view_content(*view_id)
-            }
-            lapce_data::data::EditorTabChild::Settings(view_id, _) => {
-                data.editor_view_content(*view_id)
-            }
-        };
+        let buffer = data.editor_view_content(self.parent_view_id);
 
         let rect = ctx.size().to_rect();
         ctx.with_save(|ctx| {
@@ -274,18 +269,39 @@ impl Widget<LapceTabData> for FindBox {
             .build()
             .unwrap();
 
-        ctx.draw_text(&text_layout, self.result_pos);
+        let input_size = self.input.layout_rect().size();
+        ctx.draw_text(
+            &text_layout,
+            Point::new(input_size.width, text_layout.y_offset(input_size.height)),
+        );
+
+        let case_sensitive = data
+            .main_split
+            .active_editor()
+            .map(|editor| {
+                let editor_data = data.editor_view_content(editor.view_id);
+                editor_data.find.case_sensitive()
+            })
+            .unwrap_or_default();
 
         for icon in self.icons.iter() {
-            if icon.rect.contains(self.mouse_pos) {
+            if icon.icon == LapceIcons::SEARCH_CASE_SENSITIVE && case_sensitive {
                 ctx.fill(
-                    &icon.rect,
+                    icon.rect,
                     data.config
-                        .get_color_unchecked(LapceTheme::EDITOR_CURRENT_LINE),
+                        .get_color_unchecked(LapceTheme::LAPCE_TAB_ACTIVE_UNDERLINE),
+                );
+            } else if icon.rect.contains(self.mouse_pos) {
+                ctx.fill(
+                    icon.rect,
+                    &data.config.get_hover_color(
+                        data.config
+                            .get_color_unchecked(LapceTheme::EDITOR_BACKGROUND),
+                    ),
                 );
             }
 
-            let svg = get_svg(icon.icon).unwrap();
+            let svg = data.config.ui_svg(icon.icon);
             ctx.draw_svg(
                 &svg,
                 icon.rect.inflate(-7.0, -7.0),

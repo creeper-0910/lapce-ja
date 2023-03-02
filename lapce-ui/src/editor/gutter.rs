@@ -1,4 +1,3 @@
-use crate::svg::get_svg;
 use druid::{
     piet::{PietText, Text, TextLayout, TextLayoutBuilder},
     BoxConstraints, Command, Env, Event, EventCtx, LayoutCtx, LifeCycle,
@@ -6,9 +5,11 @@ use druid::{
     Widget, WidgetId,
 };
 use lapce_core::buffer::DiffLines;
+use lapce_data::document::BufferContent;
+use lapce_data::history::DocumentHistory;
 use lapce_data::{
     command::{LapceUICommand, LAPCE_UI_COMMAND},
-    config::LapceTheme,
+    config::{LapceIcons, LapceTheme},
     data::{EditorView, LapceTabData},
     editor::{LapceEditorBufferData, Syntax},
 };
@@ -43,13 +44,14 @@ impl Widget<LapceTabData> for LapceEditorGutter {
             }
             Event::MouseUp(mouse_event) => {
                 let data = data.editor_view_content(self.view_id);
-                if let Some(actions) = data.current_code_actions() {
+                if let Some((_plugin_id, actions)) = data.current_code_actions() {
                     if !actions.is_empty() {
                         let rect = self.code_actions_rect(ctx.text(), &data);
                         if rect.contains(self.mouse_down_pos)
                             && rect.contains(mouse_event.pos)
                         {
-                            let line_height = data.config.editor.line_height as f64;
+                            let line_height =
+                                data.config.editor.line_height() as f64;
                             let offset = data.editor.cursor.offset();
                             let (line, _) =
                                 data.doc.buffer().offset_to_line_col(offset);
@@ -67,6 +69,25 @@ impl Widget<LapceTabData> for LapceEditorGutter {
                         }
                     }
                 }
+                let editor = data.main_split.editors.get(&self.view_id).unwrap();
+                if let BufferContent::File(_) = &editor.content {
+                    if let EditorView::Diff(version) = &data.editor.view {
+                        if let Some(history) = data.doc.get_history(version) {
+                            let diff_skip = self
+                                .check_and_get_diff_skip_mouse_within(
+                                    ctx,
+                                    &data,
+                                    history,
+                                    mouse_event.pos,
+                                );
+                            if let Some(diff_skip) = diff_skip {
+                                history.trigger_increase_diff_extend_lines(
+                                    &data.doc, diff_skip,
+                                )
+                            }
+                        }
+                    }
+                };
             }
             _ => {}
         }
@@ -153,7 +174,7 @@ impl LapceEditorGutter {
         let history = data.doc.get_history(version).unwrap();
         let self_size = ctx.size();
         let rect = self_size.to_rect();
-        let line_height = data.config.editor.line_height as f64;
+        let line_height = data.config.editor.line_height() as f64;
         let scroll_offset = data.editor.scroll_offset;
         let start_line = (scroll_offset.y / line_height).floor() as usize;
         let end_line =
@@ -192,12 +213,6 @@ impl LapceEditorGutter {
                         let actual_line = l - (line - len) + r.start;
 
                         let content = actual_line + 1;
-                        let x = ((last_line + 1).to_string().len()
-                            - content.to_string().len())
-                            as f64
-                            * width;
-                        let y = line_height * l as f64 + 5.0 - scroll_offset.y;
-                        let pos = Point::new(x, y);
 
                         let text_layout = ctx
                             .text()
@@ -221,6 +236,14 @@ impl LapceEditorGutter {
                             )
                             .build()
                             .unwrap();
+                        let x = ((last_line + 1).to_string().len()
+                            - content.to_string().len())
+                            as f64
+                            * width;
+                        let y = line_height * l as f64
+                            + text_layout.y_offset(line_height)
+                            - scroll_offset.y;
+                        let pos = Point::new(x, y);
                         ctx.draw_text(&text_layout, pos);
 
                         if l > end_line {
@@ -243,12 +266,6 @@ impl LapceEditorGutter {
                         let right_actual_line = l - (line - len) + r.start;
 
                         let left_content = left_actual_line + 1;
-                        let x = ((last_line + 1).to_string().len()
-                            - left_content.to_string().len())
-                            as f64
-                            * width;
-                        let y = line_height * l as f64 + 5.0 - scroll_offset.y;
-                        let pos = Point::new(x, y);
 
                         let text_layout = ctx
                             .text()
@@ -264,6 +281,14 @@ impl LapceEditorGutter {
                             )
                             .build()
                             .unwrap();
+                        let x = ((last_line + 1).to_string().len()
+                            - left_content.to_string().len())
+                            as f64
+                            * width;
+                        let y = line_height * l as f64
+                            + text_layout.y_offset(line_height)
+                            - scroll_offset.y;
+                        let pos = Point::new(x, y);
                         ctx.draw_text(&text_layout, pos);
 
                         let right_content = right_actual_line + 1;
@@ -319,6 +344,25 @@ impl LapceEditorGutter {
                             .get_color_unchecked(LapceTheme::EDITOR_FOREGROUND),
                         1.0,
                     );
+                    let pos = Point::new(
+                        (self_size.width - width * 3.0) / 2.0,
+                        line_height * line as f64 - scroll_offset.y,
+                    );
+                    let text_layout = ctx
+                        .text()
+                        .new_text_layout("...")
+                        .font(
+                            data.config.editor.font_family(),
+                            data.config.editor.font_size as f64,
+                        )
+                        .text_color(
+                            data.config
+                                .get_color_unchecked(LapceTheme::EDITOR_FOREGROUND)
+                                .clone(),
+                        )
+                        .build()
+                        .unwrap();
+                    ctx.draw_text(&text_layout, pos);
                     line += 1;
                 }
                 DiffLines::Right(r) => {
@@ -346,14 +390,6 @@ impl LapceEditorGutter {
                         let actual_line = l - (line - len) + r.start;
 
                         let content = actual_line + 1;
-                        let x = ((last_line + 1).to_string().len()
-                            - content.to_string().len())
-                            as f64
-                            * width
-                            + self.width
-                            + 2.0 * width;
-                        let y = line_height * l as f64 + 5.0 - scroll_offset.y;
-                        let pos = Point::new(x, y);
 
                         let text_layout = ctx
                             .text()
@@ -375,6 +411,16 @@ impl LapceEditorGutter {
                             })
                             .build()
                             .unwrap();
+                        let x = ((last_line + 1).to_string().len()
+                            - content.to_string().len())
+                            as f64
+                            * width
+                            + self.width
+                            + 2.0 * width;
+                        let y = line_height * l as f64
+                            + text_layout.y_offset(line_height)
+                            - scroll_offset.y;
+                        let pos = Point::new(x, y);
                         ctx.draw_text(&text_layout, pos);
 
                         if l > end_line {
@@ -386,6 +432,55 @@ impl LapceEditorGutter {
         }
     }
 
+    fn check_and_get_diff_skip_mouse_within(
+        &self,
+        ctx: &mut EventCtx,
+        data: &LapceEditorBufferData,
+        history: &DocumentHistory,
+        mouse_pos: Point,
+    ) -> Option<DiffLines> {
+        let line_height = data.config.editor.line_height() as f64;
+        let self_size = ctx.size();
+        let rect = self_size.to_rect();
+        let scroll_offset = data.editor.scroll_offset;
+        let end_line =
+            (scroll_offset.y + rect.height() / line_height).ceil() as usize;
+
+        let mut line = 0;
+        for change in history.changes().iter() {
+            match change {
+                DiffLines::Left(r) => {
+                    let len = r.len();
+                    line += len;
+                }
+                DiffLines::Both(_, r) => {
+                    let len = r.len();
+                    line += len;
+                }
+                DiffLines::Skip(l, r) => {
+                    let rect = Size::new(self_size.width, line_height)
+                        .to_rect()
+                        .with_origin(Point::new(
+                            0.0,
+                            line_height * line as f64 - scroll_offset.y,
+                        ));
+                    if rect.contains(mouse_pos) {
+                        return Some(DiffLines::Skip(l.clone(), r.clone()));
+                    }
+                    line += 1;
+                }
+                DiffLines::Right(r) => {
+                    let len = r.len();
+                    line += len;
+                }
+            }
+            if line > end_line {
+                break;
+            }
+        }
+        None
+    }
+
     fn paint_gutter_code_lens(
         &self,
         data: &LapceEditorBufferData,
@@ -395,7 +490,7 @@ impl LapceEditorGutter {
         let scroll_offset = data.editor.scroll_offset;
         let empty_lens = Syntax::lens_from_normal_lines(
             data.doc.buffer().len(),
-            data.config.editor.line_height,
+            data.config.editor.line_height(),
             data.config.editor.code_lens_font_size,
             &[],
         );
@@ -415,7 +510,7 @@ impl LapceEditorGutter {
         let end_line = lens
             .line_of_height(
                 (scroll_offset.y + rect.height()).ceil() as usize
-                    + data.config.editor.line_height,
+                    + data.config.editor.line_height(),
             )
             .min(last_line);
         let char_width = data.config.editor_char_width(ctx.text());
@@ -434,7 +529,7 @@ impl LapceEditorGutter {
                 cursor_line - line
             };
             let content = content.to_string();
-            let is_small = line_height < data.config.editor.line_height;
+            let is_small = line_height < data.config.editor.line_height();
             let text_layout = ctx
                 .text()
                 .new_text_layout(content.clone())
@@ -464,7 +559,7 @@ impl LapceEditorGutter {
                     + if is_small {
                         0.0
                     } else {
-                        (line_height as f64 - text_layout.size().height) / 2.0
+                        text_layout.y_offset(line_height as f64)
                     },
             );
             ctx.draw_text(&text_layout, pos);
@@ -478,7 +573,7 @@ impl LapceEditorGutter {
         text: &mut PietText,
         data: &LapceEditorBufferData,
     ) -> Rect {
-        let line_height = data.config.editor.line_height as f64;
+        let line_height = data.config.editor.line_height() as f64;
         let offset = data.editor.cursor.offset();
         let (line, _) = data.doc.buffer().offset_to_line_col(offset);
 
@@ -497,9 +592,9 @@ impl LapceEditorGutter {
         data: &LapceEditorBufferData,
         ctx: &mut PaintCtx,
     ) {
-        if let Some(actions) = data.current_code_actions() {
+        if let Some((_plugin_id, actions)) = data.current_code_actions() {
             if !actions.is_empty() {
-                let svg = get_svg("lightbulb.svg").unwrap();
+                let svg = data.config.ui_svg(LapceIcons::LIGHTBULB);
                 let rect = self.code_actions_rect(ctx.text(), data);
                 ctx.draw_svg(
                     &svg,
@@ -507,6 +602,66 @@ impl LapceEditorGutter {
                     Some(data.config.get_color_unchecked(LapceTheme::LAPCE_WARN)),
                 );
             }
+        }
+    }
+
+    fn paint_sticky_header(
+        &self,
+        ctx: &mut PaintCtx,
+        data: &LapceEditorBufferData,
+        line_label_length: f64,
+    ) {
+        if !data.config.editor.sticky_header {
+            return;
+        }
+
+        let size = ctx.size();
+        let line_height = data.config.editor.line_height() as f64;
+
+        let info = data.editor.sticky_header.borrow();
+
+        let sticky_area_rect = Size::new(size.width, info.height)
+            .to_rect()
+            .with_origin(Point::new(0.0, 0.0));
+
+        ctx.fill(
+            sticky_area_rect,
+            data.config
+                .get_color_unchecked(LapceTheme::EDITOR_BACKGROUND),
+        );
+
+        let total_lines = info.lines.len();
+        for (i, line) in info.lines.iter().enumerate() {
+            let y_diff = if i == total_lines - 1 {
+                info.last_y_diff
+            } else {
+                0.0
+            };
+
+            let rect = Size::new(size.width, line_height - y_diff)
+                .to_rect()
+                .with_origin(Point::new(0.0, line_height * i as f64));
+            ctx.with_save(|ctx| {
+                ctx.clip(rect);
+                let text_layout = ctx
+                    .text()
+                    .new_text_layout((line + 1).to_string())
+                    .font(
+                        data.config.editor.font_family(),
+                        data.config.editor.font_size as f64,
+                    )
+                    .text_color(
+                        data.config
+                            .get_color_unchecked(LapceTheme::EDITOR_DIM)
+                            .clone(),
+                    )
+                    .build()
+                    .unwrap();
+                let x = line_label_length - text_layout.size().width;
+                let y = line_height * i as f64 + text_layout.y_offset(line_height)
+                    - y_diff;
+                ctx.draw_text(&text_layout, Point::new(x, y));
+            });
         }
     }
 
@@ -519,11 +674,11 @@ impl LapceEditorGutter {
                 self.paint_gutter_inline_diff(data, ctx, version);
                 return;
             }
-            if data.editor.code_lens {
+            if data.editor.is_code_lens() {
                 self.paint_gutter_code_lens(data, ctx);
                 return;
             }
-            let line_height = data.config.editor.line_height as f64;
+            let line_height = data.config.editor.line_height() as f64;
             let scroll_offset = data.editor.scroll_offset;
             let start_line = (scroll_offset.y / line_height).floor() as usize;
             let num_lines = (ctx.size().height / line_height).floor() as usize;
@@ -549,12 +704,7 @@ impl LapceEditorGutter {
                 let line_no = if sequential_line_numbers || line == current_line {
                     line + 1
                 } else {
-                    // TODO: after Rust 1.60, this can be replaced with `line.abs_diff(current_line)`
-                    if line > current_line {
-                        line - current_line
-                    } else {
-                        current_line - line
-                    }
+                    line.abs_diff(current_line)
                 };
 
                 let content = line_no.to_string();
@@ -576,11 +726,11 @@ impl LapceEditorGutter {
                     .unwrap();
 
                 // Horizontally right aligned
-                let x = line_label_length as f64 - text_layout.size().width;
+                let x = line_label_length - text_layout.size().width;
 
                 // Vertically centered
                 let y = line_height * line as f64 - scroll_offset.y
-                    + (line_height - text_layout.size().height) / 2.0;
+                    + text_layout.y_offset(line_height);
 
                 ctx.draw_text(&text_layout, Point::new(x, y));
             }
@@ -672,6 +822,8 @@ impl LapceEditorGutter {
             if *data.main_split.active == Some(self.view_id) {
                 self.paint_code_actions_hint(data, ctx);
             }
+
+            self.paint_sticky_header(ctx, data, line_label_length);
         });
     }
 }

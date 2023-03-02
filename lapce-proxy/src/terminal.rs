@@ -1,3 +1,5 @@
+#[cfg(target_os = "linux")]
+use std::process::Command;
 use std::{
     borrow::Cow,
     collections::VecDeque,
@@ -7,13 +9,12 @@ use std::{
 
 use alacritty_terminal::{
     config::Program,
-    event::OnResize,
+    event::{OnResize, WindowSize},
     event_loop::Msg,
-    term::SizeInfo,
     tty::{self, setup_env, EventedPty, EventedReadWrite},
 };
 use directories::BaseDirs;
-use lapce_rpc::terminal::TermId;
+use lapce_rpc::{core::CoreRpcHandler, terminal::TermId};
 #[cfg(not(windows))]
 use mio::unix::UnixReady;
 #[allow(deprecated)]
@@ -21,9 +22,6 @@ use mio::{
     channel::{channel, Receiver, Sender},
     Events, PollOpt, Ready,
 };
-use serde_json::json;
-
-use crate::dispatch::Dispatcher;
 
 const READ_BUFFER_SIZE: usize = 0x10_0000;
 
@@ -52,16 +50,44 @@ impl Terminal {
         let poll = mio::Poll::new().unwrap();
         let mut config = TermConfig::default();
         config.pty_config.working_directory =
-            cwd.or_else(|| BaseDirs::new().map(|d| PathBuf::from(d.home_dir())));
+            if cwd.is_some() && cwd.clone().unwrap().exists() {
+                cwd
+            } else {
+                BaseDirs::new().map(|d| PathBuf::from(d.home_dir()))
+            };
         let shell = shell.trim();
-        if !shell.is_empty() {
+        let flatpak_use_host_terminal = flatpak_should_use_host_terminal();
+
+        if !shell.is_empty() || flatpak_use_host_terminal {
             let mut parts = shell.split(' ');
-            let program = parts.next().unwrap();
-            if let Ok(p) = which::which(program) {
+
+            if flatpak_use_host_terminal {
+                let flatpak_spawn_path = "/usr/bin/flatpak-spawn".to_string();
+                let host_shell = flatpak_get_default_host_shell();
+
+                let args = if shell.is_empty() {
+                    vec!["--host".to_string(), host_shell]
+                } else {
+                    vec![
+                        "--host".to_string(),
+                        host_shell,
+                        "-c".to_string(),
+                        shell.to_string(),
+                    ]
+                };
+
                 config.pty_config.shell = Some(Program::WithArgs {
-                    program: p.to_str().unwrap().to_string(),
-                    args: parts.map(|p| p.to_string()).collect::<Vec<String>>(),
+                    program: flatpak_spawn_path,
+                    args,
                 })
+            } else {
+                let program = parts.next().unwrap();
+                if let Ok(p) = which::which(program) {
+                    config.pty_config.shell = Some(Program::WithArgs {
+                        program: p.to_str().unwrap().to_string(),
+                        args: parts.map(|p| p.to_string()).collect::<Vec<String>>(),
+                    })
+                }
             }
         }
         setup_env(&config);
@@ -69,10 +95,13 @@ impl Terminal {
         #[cfg(target_os = "macos")]
         set_locale_environment();
 
-        let size =
-            SizeInfo::new(width as f32, height as f32, 1.0, 1.0, 0.0, 0.0, true);
-        let pty =
-            alacritty_terminal::tty::new(&config.pty_config, &size, None).unwrap();
+        let size = WindowSize {
+            num_lines: height as u16,
+            num_cols: width as u16,
+            cell_width: 1,
+            cell_height: 1,
+        };
+        let pty = alacritty_terminal::tty::new(&config.pty_config, size, 0).unwrap();
 
         #[allow(deprecated)]
         let (tx, rx) = channel();
@@ -86,7 +115,7 @@ impl Terminal {
         }
     }
 
-    pub fn run(&mut self, dispatcher: Dispatcher) {
+    pub fn run(&mut self, core_rpc: CoreRpcHandler) {
         let mut tokens = (0..).map(Into::into);
         let poll_opts = PollOpt::edge() | PollOpt::oneshot();
 
@@ -117,12 +146,7 @@ impl Terminal {
                         if let Some(tty::ChildEvent::Exited) =
                             self.pty.next_child_event()
                         {
-                            dispatcher.send_notification(
-                                "close_terminal",
-                                json!({
-                                    "term_id": self.term_id,
-                                }),
-                            );
+                            core_rpc.close_terminal(self.term_id);
                             break 'event_loop;
                         }
                     }
@@ -139,12 +163,9 @@ impl Terminal {
                         if event.readiness().is_readable() {
                             match self.pty.reader().read(&mut buf) {
                                 Ok(n) => {
-                                    dispatcher.send_notification(
-                                        "update_terminal",
-                                        json!({
-                                            "term_id": self.term_id,
-                                            "content": base64::encode(&buf[..n]),
-                                        }),
+                                    core_rpc.update_terminal(
+                                        self.term_id,
+                                        buf[..n].to_vec(),
                                     );
                                 }
                                 Err(_e) => (),
@@ -182,7 +203,7 @@ impl Terminal {
             match msg {
                 Msg::Input(input) => state.write_list.push_back(input),
                 Msg::Shutdown => return false,
-                Msg::Resize(size) => self.pty.on_resize(&size),
+                Msg::Resize(size) => self.pty.on_resize(size),
             }
         }
 
@@ -307,10 +328,128 @@ impl State {
     }
 }
 
+/// Code taken (and slightly modified) from wezterm's env-bootstrap
+/// Source: https://github.com/wez/wezterm/blob/691ec187ba29fcae45ddf4e4f88fd02c49988c86/env-bootstrap/src/lib.rs#L86
+/// License: https://github.com/wez/wezterm/blob/691ec187ba29fcae45ddf4e4f88fd02c49988c86/LICENSE.md
+/// SPDX: MIT
 #[cfg(target_os = "macos")]
 fn set_locale_environment() {
-    let locale = locale_config::Locale::global_default()
-        .to_string()
-        .replace('-', "_");
-    std::env::set_var("LC_ALL", locale + ".UTF-8");
+    use cocoa::base::id;
+    use cocoa::foundation::NSString;
+    use objc::runtime::Object;
+    use objc::*;
+
+    fn lang_is_set() -> bool {
+        match std::env::var_os("LANG") {
+            None => false,
+            Some(lang) => !lang.is_empty(),
+        }
+    }
+
+    if !lang_is_set() {
+        unsafe fn nsstring_to_str<'a>(ns: *mut Object) -> &'a str {
+            let data = NSString::UTF8String(ns as id) as *const u8;
+            let len = NSString::len(ns as id);
+            let bytes = std::slice::from_raw_parts(data, len);
+            std::str::from_utf8_unchecked(bytes)
+        }
+
+        unsafe {
+            let locale: *mut Object =
+                msg_send![class!(NSLocale), autoupdatingCurrentLocale];
+            let lang_code_obj: *mut Object = msg_send![locale, languageCode];
+            let country_code_obj: *mut Object = msg_send![locale, countryCode];
+
+            {
+                let lang_code = nsstring_to_str(lang_code_obj);
+                let country_code = nsstring_to_str(country_code_obj);
+
+                let candidate = format!("{lang_code}_{country_code}.UTF-8");
+                let candidate_cstr =
+                    std::ffi::CString::new(<&[u8]>::clone(&candidate.as_bytes()))
+                        .expect("make cstr from str");
+
+                // If this looks like a working locale then export it to
+                // the environment so that our child processes inherit it.
+                let old = libc::setlocale(libc::LC_CTYPE, std::ptr::null());
+                if !libc::setlocale(libc::LC_CTYPE, candidate_cstr.as_ptr())
+                    .is_null()
+                {
+                    std::env::set_var("LANG", &candidate);
+                } else {
+                    log::warn!(
+                        "setlocale({}) failed, fall back to en_US.UTF-8",
+                        candidate
+                    );
+                    std::env::set_var("LANG", "en_US.UTF-8");
+                }
+                libc::setlocale(libc::LC_CTYPE, old);
+            }
+
+            let _: () = msg_send![lang_code_obj, release];
+            let _: () = msg_send![country_code_obj, release];
+            let _: () = msg_send![locale, release];
+        }
+    }
+}
+
+#[inline]
+#[cfg(not(target_os = "linux"))]
+fn flatpak_get_default_host_shell() -> String {
+    panic!(
+        "This should never be reached. If it is, ensure you don't have a file
+        called .flatpak-info in your root directory"
+    );
+}
+
+#[inline]
+#[cfg(target_os = "linux")]
+fn flatpak_get_default_host_shell() -> String {
+    let env_string = Command::new("flatpak-spawn")
+        .arg("--host")
+        .arg("printenv")
+        .output()
+        .unwrap()
+        .stdout;
+
+    let env_string = String::from_utf8(env_string).unwrap();
+
+    for env_pair in env_string.split('\n') {
+        let name_value: Vec<&str> = env_pair.split('=').collect();
+
+        if name_value[0] == "SHELL" {
+            return name_value[1].to_string();
+        }
+    }
+
+    // In case SHELL isn't set for whatever reason, fall back to this
+    "/bin/sh".to_string()
+}
+
+#[inline]
+#[cfg(not(target_os = "linux"))]
+fn flatpak_should_use_host_terminal() -> bool {
+    false // Flatpak is only available on Linux
+}
+
+#[inline]
+#[cfg(target_os = "linux")]
+fn flatpak_should_use_host_terminal() -> bool {
+    use std::path::Path;
+
+    const FLATPAK_INFO_PATH: &str = "/.flatpak-info";
+
+    // The de-facto way of checking whether one is inside of a Flatpak container is by checking for
+    // the presence of /.flatpak-info in the filesystem
+    if !Path::new(FLATPAK_INFO_PATH).exists() {
+        return false;
+    }
+
+    // Ensure flatpak-spawn --host can execute a basic command
+    Command::new("flatpak-spawn")
+        .arg("--host")
+        .arg("true")
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
 }

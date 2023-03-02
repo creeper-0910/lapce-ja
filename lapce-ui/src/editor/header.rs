@@ -1,7 +1,7 @@
 use std::{iter::Iterator, path::PathBuf};
 
 use druid::{
-    piet::{Text, TextAttribute, TextLayout as TextLayoutTrait, TextLayoutBuilder},
+    piet::{Text, TextAttribute, TextLayoutBuilder},
     BoxConstraints, Command, Env, Event, EventCtx, LayoutCtx, LifeCycle,
     LifeCycleCtx, MouseEvent, PaintCtx, Point, Rect, RenderContext, Size, Target,
     UpdateCtx, Widget, WidgetId,
@@ -9,16 +9,13 @@ use druid::{
 use lapce_core::command::FocusCommand;
 use lapce_data::{
     command::{CommandKind, LapceCommand, LAPCE_COMMAND},
-    config::LapceTheme,
+    config::{LapceIcons, LapceTheme},
     data::{LapceTabData, LapceWorkspace},
     document::BufferContent,
     editor::LapceEditorBufferData,
 };
 
-use crate::{
-    svg::{file_svg, get_svg},
-    tab::LapceIcon,
-};
+use crate::tab::LapceIcon;
 
 pub struct LapceEditorHeader {
     view_id: WidgetId,
@@ -53,7 +50,7 @@ impl LapceEditorHeader {
         let x =
             self_size.width - ((icons.len() + 1) as f64) * (gap + self.icon_size);
         let icon = LapceIcon {
-            icon: "close.svg",
+            icon: LapceIcons::CLOSE,
             rect: Size::new(self.icon_size, self.icon_size)
                 .to_rect()
                 .with_origin(Point::new(x, gap)),
@@ -71,7 +68,7 @@ impl LapceEditorHeader {
         let x =
             self_size.width - ((icons.len() + 1) as f64) * (gap + self.icon_size);
         let icon = LapceIcon {
-            icon: "split-horizontal.svg",
+            icon: LapceIcons::SPLIT_HORIZONTAL,
             rect: Size::new(self.icon_size, self.icon_size)
                 .to_rect()
                 .with_origin(Point::new(x, gap)),
@@ -148,18 +145,19 @@ impl LapceEditorHeader {
 
             ctx.with_save(|ctx| {
                 ctx.clip(clip_rect);
-                let svg = file_svg(&path);
+                let (svg, svg_color) = data.config.file_svg(&path);
 
                 let font_size = data.config.ui.font_size() as f64;
 
-                let width = font_size;
-                let height = font_size;
+                let svg_size = data.config.ui.icon_size() as f64;
                 let rect =
-                    Size::new(width, height).to_rect().with_origin(Point::new(
-                        (size.height - width) / 2.0,
-                        (size.height - height) / 2.0,
-                    ));
-                ctx.draw_svg(&svg, rect, None);
+                    Size::new(svg_size, svg_size)
+                        .to_rect()
+                        .with_origin(Point::new(
+                            (size.height - svg_size) / 2.0,
+                            (size.height - svg_size) / 2.0,
+                        ));
+                ctx.draw_svg(&svg, rect, svg_color);
 
                 let mut file_name = path
                     .file_name()
@@ -184,7 +182,7 @@ impl LapceEditorHeader {
                     .unwrap_or("")
                     .to_string();
                 if !folder.is_empty() {
-                    file_name = format!("{} {}", file_name, folder);
+                    file_name = format!("{file_name} {folder}");
                 }
                 let total_len = file_name.len();
                 let mut text_layout = ctx
@@ -209,10 +207,7 @@ impl LapceEditorHeader {
                 let text_layout = text_layout.build().unwrap();
                 ctx.draw_text(
                     &text_layout,
-                    Point::new(
-                        size.height,
-                        (size.height - text_layout.size().height) / 2.0,
-                    ),
+                    Point::new(size.height, text_layout.y_offset(size.height)),
                 );
             });
         }
@@ -221,12 +216,13 @@ impl LapceEditorHeader {
             for icon in self.icons.iter() {
                 if icon.rect.contains(self.mouse_pos) {
                     ctx.fill(
-                        &icon.rect,
+                        icon.rect,
                         data.config
                             .get_color_unchecked(LapceTheme::EDITOR_CURRENT_LINE),
                     );
                 }
-                if let Some(svg) = get_svg(icon.icon) {
+                {
+                    let svg = data.config.ui_svg(icon.icon);
                     ctx.draw_svg(
                         &svg,
                         icon.rect.inflate(-self.svg_padding, -self.svg_padding),
@@ -254,10 +250,8 @@ impl Widget<LapceTabData> for LapceEditorHeader {
                 self.mouse_pos = mouse_event.pos;
                 if self.icon_hit_test(mouse_event) {
                     ctx.set_cursor(&druid::Cursor::Pointer);
-                    ctx.request_paint();
                 } else {
                     ctx.clear_cursor();
-                    ctx.request_paint();
                 }
             }
             Event::MouseDown(mouse_event) => {

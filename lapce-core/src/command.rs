@@ -8,6 +8,7 @@ use crate::movement::{LinePosition, Movement};
     EnumIter,
     Clone,
     PartialEq,
+    Eq,
     Debug,
     EnumMessage,
     IntoStaticStr,
@@ -29,14 +30,25 @@ pub enum EditCommand {
     DeleteBackward,
     #[strum(serialize = "delete_forward")]
     DeleteForward,
+    #[strum(serialize = "delete_line")]
+    DeleteLine,
     #[strum(serialize = "delete_forward_and_insert")]
     DeleteForwardAndInsert,
+    #[strum(serialize = "delete_word_and_insert")]
+    DeleteWordAndInsert,
+    #[strum(serialize = "delete_line_and_insert")]
+    DeleteLineAndInsert,
     #[strum(serialize = "delete_word_forward")]
     DeleteWordForward,
     #[strum(serialize = "delete_word_backward")]
     DeleteWordBackward,
     #[strum(serialize = "delete_to_beginning_of_line")]
     DeleteToBeginningOfLine,
+    #[strum(serialize = "delete_to_end_of_line")]
+    DeleteToEndOfLine,
+
+    #[strum(serialize = "delete_to_end_and_insert")]
+    DeleteToEndOfLineAndInsert,
     #[strum(message = "Join Lines")]
     #[strum(serialize = "join_lines")]
     JoinLines,
@@ -66,6 +78,8 @@ pub enum EditCommand {
     Yank,
     #[strum(serialize = "paste")]
     Paste,
+    #[strum(serialize = "paste_before")]
+    PasteBefore,
 
     #[strum(serialize = "normal_mode")]
     NormalMode,
@@ -83,6 +97,10 @@ pub enum EditCommand {
     ToggleLinewiseVisualMode,
     #[strum(serialize = "toggle_blockwise_visual_mode")]
     ToggleBlockwiseVisualMode,
+    #[strum(serialize = "duplicate_line_up")]
+    DuplicateLineUp,
+    #[strum(serialize = "duplicate_line_down")]
+    DuplicateLineDown,
 }
 
 #[derive(
@@ -91,6 +109,7 @@ pub enum EditCommand {
     EnumIter,
     Clone,
     PartialEq,
+    Eq,
     Debug,
     EnumMessage,
     IntoStaticStr,
@@ -136,6 +155,12 @@ pub enum MoveCommand {
     NextUnmatchedRightCurlyBracket,
     #[strum(serialize = "previous_unmatched_left_curly_bracket")]
     PreviousUnmatchedLeftCurlyBracket,
+    #[strum(message = "Paragraph forward")]
+    #[strum(serialize = "paragraph_forward")]
+    ParagraphForward,
+    #[strum(message = "Paragraph backward")]
+    #[strum(serialize = "paragraph_backward")]
+    ParagraphBackward,
 }
 
 impl MoveCommand {
@@ -167,6 +192,8 @@ impl MoveCommand {
             PreviousUnmatchedLeftBracket => Movement::PreviousUnmatched('('),
             NextUnmatchedRightCurlyBracket => Movement::NextUnmatched('}'),
             PreviousUnmatchedLeftCurlyBracket => Movement::PreviousUnmatched('{'),
+            ParagraphForward => Movement::ParagraphForward,
+            ParagraphBackward => Movement::ParagraphBackward,
         }
     }
 }
@@ -177,6 +204,7 @@ impl MoveCommand {
     EnumIter,
     Clone,
     PartialEq,
+    Eq,
     Debug,
     EnumMessage,
     IntoStaticStr,
@@ -204,6 +232,8 @@ pub enum FocusCommand {
     SearchForward,
     #[strum(serialize = "search_backward")]
     SearchBackward,
+    #[strum(serialize = "toggle_case_sensitive_search")]
+    ToggleCaseSensitive,
     #[strum(serialize = "global_search_refresh")]
     GlobalSearchRefresh,
     #[strum(serialize = "clear_search")]
@@ -214,8 +244,12 @@ pub enum FocusCommand {
     ListSelect,
     #[strum(serialize = "list.next")]
     ListNext,
+    #[strum(serialize = "list.next_page")]
+    ListNextPage,
     #[strum(serialize = "list.previous")]
     ListPrevious,
+    #[strum(serialize = "list.previous_page")]
+    ListPreviousPage,
     #[strum(serialize = "list.expand")]
     ListExpand,
     #[strum(serialize = "jump_to_next_snippet_placeholder")]
@@ -240,6 +274,8 @@ pub enum FocusCommand {
     ShowCodeActions,
     #[strum(serialize = "get_completion")]
     GetCompletion,
+    #[strum(serialize = "get_signature")]
+    GetSignature,
     /// This will close a modal, such as the settings window or completion
     #[strum(message = "modalを閉じる")]
     #[strum(serialize = "modal.close")]
@@ -247,10 +283,17 @@ pub enum FocusCommand {
     #[strum(message = "定義へ移動")]
     #[strum(serialize = "goto_definition")]
     GotoDefinition,
+    #[strum(message = "Go to Type Definition")]
+    #[strum(serialize = "goto_type_definition")]
+    GotoTypeDefinition,
+    #[strum(message = "Show Hover")]
+    #[strum(serialize = "show_hover")]
+    ShowHover,
     #[strum(serialize = "jump_location_backward")]
     JumpLocationBackward,
     #[strum(serialize = "jump_location_forward")]
     JumpLocationForward,
+    #[strum(message = "Next Error in Workspace")]
     #[strum(serialize = "next_error")]
     NextError,
     #[strum(serialize = "previous_error")]
@@ -264,6 +307,9 @@ pub enum FocusCommand {
     #[strum(message = "Code-Lensの切り替え")]
     #[strum(serialize = "toggle_code_lens")]
     ToggleCodeLens,
+    #[strum(message = "Toggle History")]
+    #[strum(serialize = "toggle_history")]
+    ToggleHistory,
     #[strum(serialize = "format_document")]
     #[strum(message = "文書のformat")]
     FormatDocument,
@@ -278,10 +324,22 @@ pub enum FocusCommand {
     #[strum(message = "保存")]
     #[strum(serialize = "save")]
     Save,
+    #[strum(message = "Save Without Formatting")]
+    #[strum(serialize = "save_without_format")]
+    SaveWithoutFormatting,
     #[strum(serialize = "save_and_exit")]
     SaveAndExit,
     #[strum(serialize = "force_exit")]
     ForceExit,
+    #[strum(serialize = "rename_symbol")]
+    #[strum(message = "Rename Symbol")]
+    Rename,
+    #[strum(serialize = "confirm_rename")]
+    ConfirmRename,
+    #[strum(serialize = "select_next_syntax_item")]
+    SelectNextSyntaxItem,
+    #[strum(serialize = "select_previous_syntax_item")]
+    SelectPreviousSyntaxItem,
 }
 
 #[derive(
@@ -290,6 +348,7 @@ pub enum FocusCommand {
     EnumIter,
     Clone,
     PartialEq,
+    Eq,
     Debug,
     EnumMessage,
     IntoStaticStr,
@@ -311,6 +370,7 @@ pub enum MotionModeCommand {
     EnumIter,
     Clone,
     PartialEq,
+    Eq,
     Debug,
     EnumMessage,
     IntoStaticStr,

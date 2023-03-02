@@ -1,4 +1,6 @@
-[theme]
+#:schema ../extra/schemas/color-theme.json
+
+[color-theme]
 name = "Lapce Light"
 
 [ui]
@@ -11,22 +13,21 @@ activity-width = 50
 scroll-width = 10
 drop-shadow-width = 0
 
-[theme.base]
-white = "#FAFAFA"
+[color-theme.base]
 black = "#383A42"
-grey = "#E5E5E6"
-light_grey = "#F2F2F2"
 blue = "#4078F2"
-red = "#E45649"
-yellow = "#C18401"
-green = "#50A14F"
-purple = "#A626A4"
 cyan = "#0184BC"
+green = "#50A14F"
+grey = "#E5E5E6"
 magenta = "#A626A4"
+orange = "#D19A66"
+purple = "#A626A4"
+red = "#E45649"
+white = "#FAFAFA"
+yellow = "#C18401"
 
-[theme.syntax]
+[color-theme.syntax]
 "comment" = "#A0A1A7"
-
 "constant" = "$yellow"
 "type" = "$yellow"
 "typeAlias" = "$yellow"
@@ -49,23 +50,56 @@ magenta = "#A626A4"
 "property" = "$red"
 "enumMember" = "$red"
 "enum-member" = "$red"
-"variable.other.member" = "$red"
 
 "string" = "$green"
+"string.escape" = "$cyan"
 
 "type.builtin" = "$cyan"
 "builtinType" = "$cyan"
 "escape" = "$cyan"
 "embedded" = "$cyan"
 
-[theme.ui]
-"lapce.active_tab" = "$white"
-"lapce.inactive_tab" = "$grey"
+"punctuation.delimiter" = "$yellow"
+"text.title" = "$orange"
+"text.uri" = "$cyan"
+"text.reference" = "$yellow"
+"variable" = "$red"
+"variable.other.member" = "$green"
+"tag" = "$blue"
+
+[color-theme.ui]
 "lapce.error" = "#E51400"
 "lapce.warn" = "#E9A700"
 "lapce.dropdown_shadow" = "#B4B4B4"
 "lapce.border" = "#B4B4B4"
 "lapce.scroll_bar" = "#B4B4B4"
+
+"lapce.button.primary.background" = "#50a14f"
+"lapce.button.primary.foreground" = "$white"
+
+# tab
+"lapce.tab.active.background" = "$white"
+"lapce.tab.active.foreground" = "$black"
+"lapce.tab.active.underline" = "#528BFF"
+
+"lapce.tab.inactive.background" = "#EAEAEB"
+"lapce.tab.inactive.foreground" = "$black"
+"lapce.tab.inactive.underline" = "#528BFF77"
+
+"lapce.tab.separator" = "#B4B4B4"
+
+"lapce.icon.active" = "$black"
+"lapce.icon.inactive" = "#A0A1A7"
+
+"lapce.remote.icon" = "$white"
+"lapce.remote.local" = "#4078F2"
+"lapce.remote.connected" = "#50A14F"
+"lapce.remote.connecting" = "#C18401"
+"lapce.remote.disconnected" = "#E45649"
+
+"lapce.plugin.name" = "#444444"
+"lapce.plugin.description" = "$black"
+"lapce.plugin.author" = "#707070"
 
 "terminal.cursor" = "$black"
 "terminal.foreground" = "$black"
@@ -94,14 +128,31 @@ magenta = "#A626A4"
 "editor.caret" = "#526FFF"
 "editor.selection" = "$grey"
 "editor.current_line" = "#F2F2F2"
-"editor.link" = "$cyan"
+"editor.link" = "$blue"
+"editor.visible_whitespace" = "$grey"
+"editor.indent_guide" = "$grey"
+"editor.drag_drop_background" = "#79c1fc33"
+"editor.drag_drop_tab_background" = "#0b0e1433"
+"editor.sticky_header_background" = "$white"
+
+"inlay_hint.foreground" = "$black"
+"inlay_hint.background" = "#528bFF55"
+
+"error_lens.error.foreground" = "$red"
+"error_lens.error.background" = "#E4564920"
+"error_lens.warning.foreground" = "$yellow"
+"error_lens.warning.background" = "#C1840120"
+"error_lens.other.foreground" = "#A0A1A7"
+"error_lens.other.background" = "#A0A1A720"
 
 "source_control.added" = "#50A14F32"
 "source_control.removed" = "#FF526632"
 "source_control.modified" = "#0184BC32"
 
 "palette.background" = "#EAEAEB"
-"palette.current" = "#DBDBDC"
+"palette.foreground" = "$black"
+"palette.current.background" = "#DBDBDC"
+"palette.current.foreground" = "$black"
 
 "completion.background" = "#EAEAEB"
 "completion.current" = "#DBDBDC"
@@ -112,13 +163,24 @@ magenta = "#A626A4"
 "activity.current" = "$white"
 
 "panel.background" = "#EAEAEB"
-"panel.current" = "#DBDBDC"
-"panel.hovered" = "#E4E4E6"
+"panel.foreground" = "$black"
+"panel.foreground.dim" = "#A0A1A7"
+"panel.current.background" = "#DBDBDC"
+"panel.current.foreground" = "$black"
+"panel.current.foreground.dim" = "#A0A1A7"
+"panel.hovered.background" = "#E4E4E6"
+"panel.hovered.foreground" = "$black"
+"panel.hovered.foreground.dim" = "#A0A1A7"
 
 "status.background" = "#EAEAEB"
-"status.modal.normal" = "$blue"
-"status.modal.insert" = "$red"
-"status.modal.visual" = "$yellow"
-"status.modal.terminal" = "$purple"
+"status.foreground" = "$black"
+"status.modal.normal.background" = "$blue"
+"status.modal.normal.foreground" = "$white"
+"status.modal.insert.background" = "$red"
+"status.modal.insert.foreground" = "$white"
+"status.modal.visual.background" = "$yellow"
+"status.modal.visual.foreground" = "$white"
+"status.modal.terminal.background" = "$purple"
+"status.modal.terminal.foreground" = "$white"
 
 "markdown.blockquote" = "#686868"
